@@ -24,11 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  fetchReleaseFilters,
-  fetchReleases,
-  queryKeys,
-} from "@/lib/api-client"
+import { fetchReleaseFilters, fetchReleases, queryKeys } from "@/lib/api-client"
 import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -135,15 +131,7 @@ export function DirectoryPage() {
         router.replace(href, { scroll: false })
       }
     },
-    [
-      debouncedSearch,
-      language,
-      pathname,
-      platform,
-      router,
-      searchParams,
-      sort,
-    ]
+    [debouncedSearch, language, pathname, platform, router, searchParams, sort]
   )
 
   React.useEffect(() => {
@@ -249,7 +237,7 @@ export function DirectoryPage() {
               <p className="mb-1.5 text-[0.65rem] font-semibold tracking-[0.18em] text-primary uppercase sm:mb-2 sm:text-xs sm:tracking-[0.2em]">
                 {brandCopy.hero.eyebrow}
               </p>
-              <h1 className="font-heading text-[1.85rem] leading-[1.1] font-bold tracking-tight text-balance sm:text-4xl lg:text-6xl">
+              <h1 className="font-heading text-xl leading-snug font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
                 {brandCopy.hero.title}
                 <span className="text-primary">.</span>
               </h1>
@@ -268,8 +256,12 @@ export function DirectoryPage() {
           </div>
 
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-            <span className="sm:hidden">{brandCopy.hero.descriptionMobile}</span>
-            <span className="hidden sm:inline">{brandCopy.hero.description}</span>
+            <span className="sm:hidden">
+              {brandCopy.hero.descriptionMobile}
+            </span>
+            <span className="hidden sm:inline">
+              {brandCopy.hero.description}
+            </span>
           </p>
         </header>
 
@@ -417,7 +409,10 @@ export function DirectoryPage() {
               ))}
             </div>
 
-            <div ref={loadMoreRef} className="mt-8 flex flex-col items-center gap-3 pb-4">
+            <div
+              ref={loadMoreRef}
+              className="mt-8 flex flex-col items-center gap-3 pb-4"
+            >
               {isFetchingNextPage ? (
                 <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                   <SpinnerGapIcon className="size-4 animate-spin" />

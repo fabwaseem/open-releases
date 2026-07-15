@@ -34,7 +34,7 @@ export const brandCopy = {
 
   hero: {
     eyebrow: "Open source · Desktop",
-    title: "Find desktop apps that ship releases",
+    title: "Desktop apps ready to install",
     descriptionMobile:
       "Windows, macOS & Linux apps from GitHub — search and open the latest release.",
     description:
@@ -63,7 +63,8 @@ export const brandCopy = {
 
   auth: {
     signInSupport: "Sign in to save favorites and pick up where you left off.",
-    signUpSupport: "Create an account to save desktop apps and track releases you care about.",
+    signUpSupport:
+      "Create an account to save desktop apps and track releases you care about.",
   },
 
   addRepo: {
