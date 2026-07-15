@@ -15,6 +15,7 @@ import {
 import { FeatureButton } from "@/components/admin/feature-button"
 import { PlatformBadges } from "@/components/directory/platform-badges"
 import { FavoriteButton } from "@/components/favorites/favorite-button"
+import { SiteFooter } from "@/components/layout/site-footer"
 import { SiteHeader } from "@/components/layout/site-header"
 import { NotFoundView } from "@/components/not-found/not-found-view"
 import { ReleaseNotes } from "@/components/markdown/release-notes"
@@ -102,14 +103,14 @@ export function RepoDetailPage({
   )
 
   return (
-    <div className="relative min-h-svh bg-background">
+    <div className="relative flex min-h-svh flex-col bg-background">
       <SiteHeader />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,oklch(0.45_0.2_25_/_0.18),transparent_65%)]"
       />
 
-      <div className="relative mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
+      <div className="relative mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
           <Button
             variant="ghost"
@@ -422,6 +423,7 @@ export function RepoDetailPage({
           />
         </section>
       </div>
+      <SiteFooter />
     </div>
   )
 }

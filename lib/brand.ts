@@ -96,6 +96,15 @@ export const brandCopy = {
     repoCta: "Browse directory",
   },
 
+  error: {
+    code: "500",
+    title: "Something went wrong",
+    description:
+      "We hit an unexpected error. Try again, or head back to the directory while we sort it out.",
+    retry: "Try again",
+    cta: "Browse directory",
+  },
+
   admin: {
     brandSubtitle: "Admin console",
   },

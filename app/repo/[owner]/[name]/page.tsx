@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { RepoDetailPage } from "@/components/repo/repo-detail-page"
 import { getRepoFromCatalog } from "@/lib/catalog"
 import { siteConfig } from "@/lib/brand"
-import { buildMetadata } from "@/lib/seo"
+import { buildMetadata, softwareApplicationJsonLd } from "@/lib/seo"
 
 type PageProps = {
   params: Promise<{ owner: string; name: string }>
@@ -43,5 +43,15 @@ export default async function Page({ params }: PageProps) {
   const catalog = await getRepoFromCatalog(owner, name).catch(() => null)
   if (!catalog) notFound()
 
-  return <RepoDetailPage owner={owner} name={name} />
+  const jsonLd = softwareApplicationJsonLd(catalog)
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <RepoDetailPage owner={owner} name={name} />
+    </>
+  )
 }

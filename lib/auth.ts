@@ -4,11 +4,7 @@ import { nextCookies } from "better-auth/next-js"
 import { admin } from "better-auth/plugins"
 
 import { prisma } from "@/lib/db"
-
-const googleClientId = process.env.GOOGLE_CLIENT_ID
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
-const githubClientId = process.env.GITHUB_CLIENT_ID
-const githubClientSecret = process.env.GITHUB_CLIENT_SECRET
+import { env } from "@/lib/env"
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -19,19 +15,19 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
   socialProviders: {
-    ...(googleClientId && googleClientSecret
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? {
           google: {
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
           },
         }
       : {}),
-    ...(githubClientId && githubClientSecret
+    ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
       ? {
           github: {
-            clientId: githubClientId,
-            clientSecret: githubClientSecret,
+            clientId: env.GITHUB_CLIENT_ID,
+            clientSecret: env.GITHUB_CLIENT_SECRET,
           },
         }
       : {}),
@@ -46,9 +42,9 @@ export const auth = betterAuth({
     }),
     nextCookies(),
   ],
-  trustedOrigins: [
-    process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  ].filter(Boolean),
+  trustedOrigins: [env.BETTER_AUTH_URL ?? "http://localhost:3000"].filter(
+    Boolean
+  ),
 })
 
 export type Session = typeof auth.$Infer.Session

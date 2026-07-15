@@ -215,7 +215,7 @@ export function DirectoryPage() {
   const loadedCount = items.length
 
   return (
-    <div className="relative min-h-svh bg-background">
+    <div className="relative bg-background">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,oklch(0.45_0.2_25_/_0.22),transparent_60%)]"

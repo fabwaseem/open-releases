@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
 import { Toaster } from "@/components/ui/toaster"
 import { siteConfig } from "@/lib/brand"
+import "@/lib/env"
 import { buildMetadata, websiteJsonLd } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 

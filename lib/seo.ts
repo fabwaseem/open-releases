@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 
 import { absoluteUrl, siteConfig } from "@/lib/brand"
+import { platformLabel } from "@/lib/format"
+import type { CatalogRepo } from "@/lib/types"
 
 type BuildMetadataInput = {
   title?: string
@@ -95,5 +97,82 @@ export function websiteJsonLd() {
     url: siteConfig.url,
     description: siteConfig.description,
     inLanguage: "en",
+  }
+}
+
+/** Per-repo structured data for download / desktop app pages. */
+export function softwareApplicationJsonLd(repo: CatalogRepo) {
+  const pageUrl = absoluteUrl(
+    `/repo/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`
+  )
+  const operatingSystem = repo.platforms.map(platformLabel).join(", ")
+  const release = repo.latest_release
+
+  const offers =
+    release.assets.length > 0
+      ? release.assets.map((asset) => ({
+          "@type": "Offer" as const,
+          name: asset.name,
+          url: asset.url,
+          price: 0,
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+        }))
+      : {
+          "@type": "Offer" as const,
+          price: 0,
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+          url: release.url ?? repo.url,
+        }
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        name: repo.name,
+        alternateName: repo.full_name,
+        description:
+          repo.description?.trim() ||
+          `Open-source desktop app ${repo.full_name} with installers on GitHub Releases.`,
+        url: pageUrl,
+        downloadUrl: release.url ?? repo.url,
+        applicationCategory: "DesktopApplication",
+        operatingSystem: operatingSystem || undefined,
+        softwareVersion: release.tag || undefined,
+        image: repo.avatar_url || undefined,
+        author: {
+          "@type": "Organization",
+          name: repo.owner,
+          url: `https://github.com/${repo.owner}`,
+        },
+        offers,
+        isRelatedTo: {
+          "@type": "SoftwareSourceCode",
+          name: repo.full_name,
+          codeRepository: repo.url,
+          url: repo.url,
+          programmingLanguage: repo.language || undefined,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: siteConfig.name,
+            item: siteConfig.url,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: repo.name,
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
   }
 }

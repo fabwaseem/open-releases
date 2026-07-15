@@ -249,6 +249,23 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </>
         )}
       </p>
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        By continuing you agree to our{" "}
+        <Link
+          href="/terms"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link
+          href="/privacy"
+          className="underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   )
 }
