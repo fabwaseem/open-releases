@@ -7,6 +7,11 @@ export const siteConfig = {
   shortName: "Open Releases",
   /** Shown after the name with accent styling */
   mark: ".",
+  /**
+   * Brand primary (matches dark `--primary: oklch(0.62 0.24 25)` in globals.css).
+   * Used in SVG logo, favicon, manifest, and OG assets that need a hex color.
+   */
+  primary: "#f51d31",
   tagline: "Desktop apps from open source, ready to download.",
   description:
     "Browse a living directory of open-source Windows, macOS, and Linux apps shipping on GitHub Releases. Search, filter by platform, and open the latest installer.",

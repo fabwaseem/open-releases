@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Open Releases">
+  <rect width="32" height="32" fill="#f51d31"/>
+  <path
+    fill="#FAFAFA"
+    d="M15 6h2v10.17l3.59-3.58 1.41 1.41L16 20 9.99 14l1.42-1.41L15 16.17V6Zm-6 14h14v2H9v-2Zm1.5 3h11L23 26H9l1.5-3Z"
+  />
+</svg>

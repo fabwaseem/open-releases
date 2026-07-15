@@ -29,7 +29,7 @@ export default function OpenGraphImage() {
             fontSize: 28,
             letterSpacing: "0.22em",
             textTransform: "uppercase",
-            color: "#e11d48",
+            color: siteConfig.primary,
             fontWeight: 700,
           }}
         >
@@ -39,14 +39,45 @@ export default function OpenGraphImage() {
           <div
             style={{
               display: "flex",
-              fontSize: 84,
-              fontWeight: 700,
-              lineHeight: 1.05,
-              letterSpacing: "-0.04em",
+              alignItems: "center",
+              gap: 28,
             }}
           >
-            Open Releases
-            <span style={{ color: "#e11d48" }}>.</span>
+            <div
+              style={{
+                display: "flex",
+                width: 96,
+                height: 96,
+                background: siteConfig.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="56"
+                height="56"
+                viewBox="0 0 32 32"
+                fill="none"
+              >
+                <path
+                  fill="#FAFAFA"
+                  d="M15 6h2v10.17l3.59-3.58 1.41 1.41L16 20 9.99 14l1.42-1.41L15 16.17V6Zm-6 14h14v2H9v-2Zm1.5 3h11L23 26H9l1.5-3Z"
+                />
+              </svg>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 72,
+                fontWeight: 700,
+                lineHeight: 1.05,
+                letterSpacing: "-0.04em",
+              }}
+            >
+              Open Releases
+              <span style={{ color: siteConfig.primary }}>.</span>
+            </div>
           </div>
           <div
             style={{
