@@ -30,7 +30,24 @@ pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!**/.env.example
+!scraper/.env.example
+
+# python / scraper
+.venv/
+venv/
+scraper/.venv/
+scraper/venv/
+scraper/data/
+scraper/data/*.jsonl
+scraper/**/__pycache__/
+**/__pycache__/
+*.pyc
+*.tmp
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+/generated/prisma

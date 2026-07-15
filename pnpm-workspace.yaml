@@ -4,3 +4,7 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   msw: false
+  better-sqlite3: true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true

@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Published release catalog entry shown in the directory UI.
+model Repository {
+  id            String    @id @default(cuid())
+  fullName      String    @unique
+  name          String
+  owner         String
+  description   String?
+  url           String
+  homepage      String?
+  stars         Int       @default(0)
+  language      String?
+  topics        Json      @default("[]")
+  license       String?
+  avatarUrl     String?
+  pushedAt      DateTime?
+  releasesCount Int?
+  platforms     Json      @default("[]")
+  hasWindows    Boolean   @default(false)
+  hasMacos      Boolean   @default(false)
+  hasLinux      Boolean   @default(false)
+  /// Soft-hide from the public directory without deleting scrape history.
+  hidden        Boolean   @default(false)
+  hiddenReason  String?
+  scrapedAt     DateTime  @default(now())
+  releaseCheckedAt DateTime?
+
+  /// Weighted activity score 0–100 (see lib/score.ts).
+  activityScore          Float     @default(0)
+  scoreNewStars          Float     @default(0)
+  scoreReleaseFrequency  Float     @default(0)
+  scoreRecentCommits     Float     @default(0)
+  scoreContributorGrowth Float     @default(0)
+  scoreIssueActivity     Float     @default(0)
+  /// Snapshots used to compute deltas on the next scrape.
+  previousStars          Int?
+  previousContributors   Int?
+  contributorsCount      Int?
+  scoredAt               DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  latestRelease Release?
+  scrapeRecord  ScrapeRecord?
+
+  @@index([hidden, activityScore])
+  @@index([hidden, stars])
+  @@index([pushedAt])
+  @@index([hasWindows])
+  @@index([hasMacos])
+  @@index([hasLinux])
+  @@index([language])
+}
+
+model Release {
+  id           String    @id @default(cuid())
+  repositoryId String    @unique
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  tag          String
+  name         String?
+  publishedAt  DateTime?
+  url          String?
+  prerelease   Boolean   @default(false)
+  body         String?
+  platforms    Json      @default("[]")
+  hasWindows   Boolean   @default(false)
+  hasMacos     Boolean   @default(false)
+  hasLinux     Boolean   @default(false)
+  /// Desktop installer assets (exe/msi/dmg/pkg/deb/AppImage/…)
+  assets       Json      @default("[]")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tag])
+  @@index([publishedAt])
+}
+
+/// Ledger of every discovered repo — prevents re-enriching known fullNames.
+model ScrapeRecord {
+  id           String   @id @default(cuid())
+  fullName     String   @unique
+  /// discovered | skipped_no_releases | skipped_no_assets | skipped_inactive | saved | error | hidden
+  status       String
+  reason       String?
+  repositoryId String?  @unique
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([lastSeenAt])
+}
