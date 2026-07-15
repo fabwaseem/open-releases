@@ -10,6 +10,7 @@ import {
   SignOutIcon,
 } from "@phosphor-icons/react"
 
+import { BrandMark } from "@/components/layout/brand-mark"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -54,12 +55,8 @@ export function SiteHeader() {
       ) : null}
 
       <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="font-heading text-base font-semibold tracking-tight"
-        >
-          Releases
-          <span className="text-primary">.</span>
+        <Link href="/" className="text-base">
+          <BrandMark />
         </Link>
 
         <nav className="flex items-center gap-2">

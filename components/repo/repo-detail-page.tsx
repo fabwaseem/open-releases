@@ -12,9 +12,11 @@ import {
   StarIcon,
 } from "@phosphor-icons/react"
 
+import { FeatureButton } from "@/components/admin/feature-button"
 import { PlatformBadges } from "@/components/directory/platform-badges"
 import { FavoriteButton } from "@/components/favorites/favorite-button"
 import { SiteHeader } from "@/components/layout/site-header"
+import { NotFoundView } from "@/components/not-found/not-found-view"
 import { ReleaseNotes } from "@/components/markdown/release-notes"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +25,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDetectedDevice } from "@/hooks/use-detected-device"
 import { fetchRepoDetail, queryKeys } from "@/lib/api-client"
+import { brandCopy } from "@/lib/brand"
 import { pickBestDownload } from "@/lib/device"
 import {
   formatBytes,
@@ -57,18 +60,13 @@ export function RepoDetailPage({
 
   if (isError || !data) {
     return (
-      <>
-        <SiteHeader />
-        <div className="mx-auto w-full max-w-[1400px] px-4 py-16 text-center sm:px-6 lg:px-8">
-          <p className="font-heading text-2xl font-semibold">Repository not found</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {(error as Error)?.message || "This project is not in the catalog yet."}
-          </p>
-          <Button render={<Link href="/" />} className="mt-6 rounded-xl">
-            Back to directory
-          </Button>
-        </div>
-      </>
+      <NotFoundView
+        title={brandCopy.notFound.repoTitle}
+        description={
+          (error as Error)?.message || brandCopy.notFound.repoDescription
+        }
+        ctaLabel={brandCopy.notFound.repoCta}
+      />
     )
   }
 
@@ -120,13 +118,20 @@ export function RepoDetailPage({
             render={<Link href="/" />}
           >
             <ArrowLeftIcon data-icon="inline-start" />
-            Directory
+            {brandCopy.repo.back}
           </Button>
-          <FavoriteButton
-            repositoryId={catalog.id}
-            fullName={catalog.full_name}
-            size="sm"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <FeatureButton
+              repositoryId={catalog.id}
+              featured={catalog.featured}
+              size="sm"
+            />
+            <FavoriteButton
+              repositoryId={catalog.id}
+              fullName={catalog.full_name}
+              size="sm"
+            />
+          </div>
         </div>
 
         <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm backdrop-blur-sm sm:rounded-3xl sm:p-8">

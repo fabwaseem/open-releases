@@ -10,6 +10,7 @@ import {
   SquaresFourIcon,
   WindowsLogoIcon,
 } from "@phosphor-icons/react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { ReleaseCard } from "@/components/directory/release-card"
 import { AddRepoButton } from "@/components/submissions/add-repo-dialog"
@@ -28,10 +29,20 @@ import {
   fetchReleases,
   queryKeys,
 } from "@/lib/api-client"
+import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 18
+
+const PLATFORMS = new Set<Platform>(["windows", "macos", "linux"])
+const SORT_KEYS = new Set<SortKey>([
+  "score",
+  "stars",
+  "updated",
+  "name",
+  "released",
+])
 
 const PLATFORM_ICONS: Record<
   Platform | "all",
@@ -43,6 +54,16 @@ const PLATFORM_ICONS: Record<
   linux: LinuxLogoIcon,
 }
 
+function parsePlatform(value: string | null): Platform | "all" {
+  if (value && PLATFORMS.has(value as Platform)) return value as Platform
+  return "all"
+}
+
+function parseSort(value: string | null): SortKey {
+  if (value && SORT_KEYS.has(value as SortKey)) return value as SortKey
+  return "score"
+}
+
 function useDebouncedValue<T>(value: T, delay = 250): T {
   const [debounced, setDebounced] = React.useState(value)
   React.useEffect(() => {
@@ -52,13 +73,83 @@ function useDebouncedValue<T>(value: T, delay = 250): T {
   return debounced
 }
 
+function buildFilterHref(
+  pathname: string,
+  {
+    q,
+    platform,
+    sort,
+    language,
+  }: {
+    q: string
+    platform: Platform | "all"
+    sort: SortKey
+    language: string
+  }
+) {
+  const params = new URLSearchParams()
+  const trimmed = q.trim()
+  if (trimmed) params.set("q", trimmed)
+  if (platform !== "all") params.set("platform", platform)
+  if (sort !== "score") params.set("sort", sort)
+  if (language) params.set("language", language)
+  const qs = params.toString()
+  return qs ? `${pathname}?${qs}` : pathname
+}
+
 export function DirectoryPage() {
-  const [search, setSearch] = React.useState("")
-  const [platform, setPlatform] = React.useState<Platform | "all">("all")
-  const [sort, setSort] = React.useState<SortKey>("score")
-  const [language, setLanguage] = React.useState("")
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const urlQ = searchParams.get("q") ?? ""
+  const platform = parsePlatform(searchParams.get("platform"))
+  const sort = parseSort(searchParams.get("sort"))
+  const language = searchParams.get("language")?.trim() ?? ""
+
+  const [search, setSearch] = React.useState(urlQ)
   const debouncedSearch = useDebouncedValue(search)
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null)
+
+  React.useEffect(() => {
+    setSearch(urlQ)
+  }, [urlQ])
+
+  const replaceFilters = React.useCallback(
+    (next: {
+      q?: string
+      platform?: Platform | "all"
+      sort?: SortKey
+      language?: string
+    }) => {
+      const href = buildFilterHref(pathname, {
+        q: next.q ?? debouncedSearch,
+        platform: next.platform ?? platform,
+        sort: next.sort ?? sort,
+        language: next.language ?? language,
+      })
+      const current = `${pathname}${
+        searchParams.toString() ? `?${searchParams.toString()}` : ""
+      }`
+      if (href !== current) {
+        router.replace(href, { scroll: false })
+      }
+    },
+    [
+      debouncedSearch,
+      language,
+      pathname,
+      platform,
+      router,
+      searchParams,
+      sort,
+    ]
+  )
+
+  React.useEffect(() => {
+    if (debouncedSearch.trim() === urlQ.trim()) return
+    replaceFilters({ q: debouncedSearch })
+  }, [debouncedSearch, replaceFilters, urlQ])
 
   const filterParams = {
     q: debouncedSearch,
@@ -156,36 +247,29 @@ export function DirectoryPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="mb-1.5 text-[0.65rem] font-semibold tracking-[0.18em] text-primary uppercase sm:mb-2 sm:text-xs sm:tracking-[0.2em]">
-                Open source releases
+                {brandCopy.hero.eyebrow}
               </p>
               <h1 className="font-heading text-[1.85rem] leading-[1.1] font-bold tracking-tight text-balance sm:text-4xl lg:text-6xl">
-                Latest desktop apps
+                {brandCopy.hero.title}
                 <span className="text-primary">.</span>
               </h1>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <AddRepoButton variant="tile" />
-              <div className="flex size-11 flex-col items-center justify-center rounded-xl bg-primary text-center sm:size-[4.5rem] sm:rounded-2xl">
-                <p className="text-sm leading-none font-bold text-primary-foreground tabular-nums sm:text-2xl">
+              <div className="flex size-10 flex-col items-center justify-center rounded-xl bg-primary text-center sm:size-14">
+                <p className="text-sm leading-none font-bold text-primary-foreground tabular-nums sm:text-xl">
                   {totalLoaded}
                 </p>
-                <p className="mt-0.5 text-[0.5rem] font-semibold tracking-wider text-primary-foreground/80 uppercase sm:mt-1 sm:text-[0.65rem]">
-                  tools
+                <p className="mt-0.5 text-[0.5rem] font-semibold tracking-wider text-primary-foreground/80 uppercase sm:text-[0.6rem]">
+                  apps
                 </p>
               </div>
             </div>
           </div>
 
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
-            <span className="sm:hidden">
-              Windows, macOS &amp; Linux apps from GitHub — search and open the
-              latest release.
-            </span>
-            <span className="hidden sm:inline">
-              A living directory of GitHub projects shipping Windows, macOS, and
-              Linux downloads — search, filter, and jump straight to the latest
-              release.
-            </span>
+            <span className="sm:hidden">{brandCopy.hero.descriptionMobile}</span>
+            <span className="hidden sm:inline">{brandCopy.hero.description}</span>
           </p>
         </header>
 
@@ -195,7 +279,7 @@ export function DirectoryPage() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, tag, description…"
+              placeholder={brandCopy.search.placeholder}
               className="h-10 border-0 border-transparent px-0 text-base focus-visible:border-transparent focus-visible:ring-0 sm:h-12 md:text-base"
               aria-label="Search releases"
             />
@@ -210,7 +294,7 @@ export function DirectoryPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setPlatform(item.id)}
+                    onClick={() => replaceFilters({ platform: item.id })}
                     className={cn(
                       "inline-flex w-full items-center justify-center gap-2 border px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
                       active
@@ -242,7 +326,7 @@ export function DirectoryPage() {
               <Select
                 value={sort}
                 onValueChange={(value) => {
-                  if (value) setSort(value as SortKey)
+                  if (value) replaceFilters({ sort: value as SortKey })
                 }}
               >
                 <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize lg:w-48">
@@ -260,7 +344,9 @@ export function DirectoryPage() {
               <Select
                 value={language || "all"}
                 onValueChange={(value) =>
-                  setLanguage(!value || value === "all" ? "" : value)
+                  replaceFilters({
+                    language: !value || value === "all" ? "" : value,
+                  })
                 }
               >
                 <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize lg:w-44">
@@ -301,20 +387,26 @@ export function DirectoryPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-border/60 bg-card/40 px-6 py-16 text-center">
-            <p className="font-heading text-xl font-semibold">No releases match</p>
+            <p className="font-heading text-xl font-semibold">
+              {brandCopy.empty.title}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Try another search term or clear the platform filter.
+              {brandCopy.empty.body}
             </p>
             <Button
               className="mt-6 rounded-xl"
               variant="outline"
               onClick={() => {
                 setSearch("")
-                setPlatform("all")
-                setLanguage("")
+                replaceFilters({
+                  q: "",
+                  platform: "all",
+                  sort: "score",
+                  language: "",
+                })
               }}
             >
-              Reset filters
+              {brandCopy.empty.reset}
             </Button>
           </div>
         ) : (
@@ -342,7 +434,9 @@ export function DirectoryPage() {
                 </Button>
               ) : null}
               {!hasNextPage && loadedCount > 0 ? (
-                <p className="text-xs text-muted-foreground">You’re all caught up</p>
+                <p className="text-xs text-muted-foreground">
+                  {brandCopy.empty.end}
+                </p>
               ) : null}
             </div>
           </>

@@ -1,21 +1,40 @@
-# Next.js template
+# Open Releases
 
-This is a Next.js template with shadcn/ui.
+A living directory of open-source **Windows, macOS, and Linux** desktop apps that ship real installers on GitHub Releases.
 
-## Adding components
+**Live:** [https://open-releases.vercel.app](https://open-releases.vercel.app)
 
-To add components to your app, run the following command:
+## Product
+
+- Browse and search curated desktop apps from GitHub
+- Filter by platform, language, and sort
+- Save favorites (signed-in users)
+- Submit repos for inclusion; admins publish instantly
+- Feature pinning for highlighted apps
+
+## Stack
+
+Next.js, Prisma, Postgres, better-auth, TanStack Query, Tailwind, shadcn/ui.
+
+## Setup
 
 ```bash
-npx shadcn@latest add button
+pnpm install
+cp .env.example .env
+# Set DATABASE_URL, BETTER_AUTH_*, OAuth, GITHUB_TOKEN
+# Production SEO/canonical:
+# NEXT_PUBLIC_SITE_URL=https://open-releases.vercel.app
+pnpm db:push
+pnpm dev
 ```
 
-This will place the ui components in the `components` directory.
+Scrape catalog entries:
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+pnpm scrape -- --query downloader --max-repos 50
 ```
+
+## Brand & SEO
+
+Copy and SEO defaults live in `lib/brand.ts` and `lib/seo.ts`.
+Sitemap: `/sitemap.xml` · Robots: `/robots.txt`

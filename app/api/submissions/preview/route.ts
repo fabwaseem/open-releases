@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 
 import { previewGithubRepo } from "@/lib/repo-ingest"
-import { getSession } from "@/lib/session"
+import { getSession, isAdminRole } from "@/lib/session"
 
 export const dynamic = "force-dynamic"
 
@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Repository URL is required" }, { status: 400 })
   }
 
+  const isAdmin = isAdminRole(session.user.role)
   const result = await previewGithubRepo(url, {
     submittedById: session.user.id,
+    skipPendingCheck: isAdmin,
   })
 
   if (!result.ok) {

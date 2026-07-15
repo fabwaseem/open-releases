@@ -85,7 +85,7 @@ function toPreview(
 
 export async function previewGithubRepo(
   rawUrl: string,
-  opts?: { submittedById?: string }
+  opts?: { submittedById?: string; skipPendingCheck?: boolean }
 ): Promise<PreviewSuccess | PreviewFailure> {
   const parsed = parseGithubRepoInput(rawUrl)
   if (!parsed) {
@@ -108,18 +108,20 @@ export async function previewGithubRepo(
     }
   }
 
-  const pending = await prisma.repoSubmission.findFirst({
-    where: { fullName: parsed.fullName, status: "pending" },
-    select: { id: true, submittedById: true },
-  })
-  if (pending) {
-    return {
-      ok: false,
-      code: "already_pending",
-      error:
-        pending.submittedById === opts?.submittedById
-          ? "You already submitted this repository. It is waiting for admin review."
-          : "This repository is already waiting for admin review.",
+  if (!opts?.skipPendingCheck) {
+    const pending = await prisma.repoSubmission.findFirst({
+      where: { fullName: parsed.fullName, status: "pending" },
+      select: { id: true, submittedById: true },
+    })
+    if (pending) {
+      return {
+        ok: false,
+        code: "already_pending",
+        error:
+          pending.submittedById === opts?.submittedById
+            ? "You already submitted this repository. It is waiting for admin review."
+            : "This repository is already waiting for admin review.",
+      }
     }
   }
 

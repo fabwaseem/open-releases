@@ -81,7 +81,7 @@ export function AdminSidebar() {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-heading font-semibold">
-                  Releases
+                  Open Releases
                 </span>
                 <span className="truncate text-[0.65rem] tracking-widest text-muted-foreground uppercase">
                   Admin console

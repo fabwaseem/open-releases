@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 
 import { prisma } from "@/lib/db"
-import { previewGithubRepo } from "@/lib/repo-ingest"
+import { ingestGithubRepo, previewGithubRepo } from "@/lib/repo-ingest"
 import { getSession, isAdminRole } from "@/lib/session"
 
 export const dynamic = "force-dynamic"
@@ -102,8 +102,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Repository URL is required" }, { status: 400 })
   }
 
+  const isAdmin = isAdminRole(session.user.role)
+
   const result = await previewGithubRepo(url, {
     submittedById: session.user.id,
+    skipPendingCheck: isAdmin,
   })
   if (!result.ok) {
     return Response.json(
@@ -113,11 +116,81 @@ export async function POST(request: NextRequest) {
   }
 
   const note = body.note?.trim() || null
+  const { fullName, sourceUrl } = result.preview
+
+  // Admins skip the approval queue and land directly in the catalog.
+  if (isAdmin) {
+    try {
+      const repo = await ingestGithubRepo(fullName)
+      const now = new Date()
+
+      const pending = await prisma.repoSubmission.findFirst({
+        where: { fullName, status: "pending" },
+        select: { id: true },
+      })
+
+      const submission = pending
+        ? await prisma.repoSubmission.update({
+            where: { id: pending.id },
+            data: {
+              status: "approved",
+              note: note ?? undefined,
+              preview: result.preview,
+              reviewedById: session.user.id,
+              reviewedAt: now,
+              repositoryId: repo.id,
+              reviewNote: "Added directly by admin",
+            },
+            select: {
+              id: true,
+              fullName: true,
+              status: true,
+              createdAt: true,
+            },
+          })
+        : await prisma.repoSubmission.create({
+            data: {
+              fullName,
+              sourceUrl,
+              status: "approved",
+              note,
+              preview: result.preview,
+              submittedById: session.user.id,
+              reviewedById: session.user.id,
+              reviewedAt: now,
+              repositoryId: repo.id,
+              reviewNote: "Added directly by admin",
+            },
+            select: {
+              id: true,
+              fullName: true,
+              status: true,
+              createdAt: true,
+            },
+          })
+
+      return Response.json({
+        ...submission,
+        createdAt: submission.createdAt.toISOString(),
+        repositoryId: repo.id,
+        immediate: true,
+      })
+    } catch (err) {
+      return Response.json(
+        {
+          error:
+            (err as Error).message ||
+            "Could not import repository from GitHub. Try again later.",
+        },
+        { status: 400 }
+      )
+    }
+  }
 
   const created = await prisma.repoSubmission.create({
     data: {
-      fullName: result.preview.fullName,
-      sourceUrl: result.preview.sourceUrl,
+      fullName,
+      sourceUrl,
       status: "pending",
       note,
       preview: result.preview,
@@ -134,5 +207,6 @@ export async function POST(request: NextRequest) {
   return Response.json({
     ...created,
     createdAt: created.createdAt.toISOString(),
+    immediate: false,
   })
 }

@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useSession } from "@/lib/auth-client"
+import { brandCopy } from "@/lib/brand"
 import type { RepoPreview } from "@/lib/repo-submission-types"
 import { cn } from "@/lib/utils"
 
@@ -62,11 +63,11 @@ export function AddRepoButton({
               aria-label="Add a repo"
               onClick={handleClick}
               className={cn(
-                "inline-flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 sm:size-[4.5rem] sm:rounded-2xl",
+                "inline-flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 sm:size-14",
                 className
               )}
             >
-              <PlusIcon className="size-5 sm:size-8" weight="bold" />
+              <PlusIcon className="size-4 sm:size-6" weight="bold" />
             </TooltipTrigger>
             <TooltipContent side="bottom">Add a repo</TooltipContent>
           </Tooltip>
@@ -83,7 +84,11 @@ export function AddRepoButton({
           Add a repo
         </Button>
       )}
-      <AddRepoDialog open={open} onOpenChange={setOpen} />
+      <AddRepoDialog
+        open={open}
+        onOpenChange={setOpen}
+        isAdmin={session?.user?.role === "admin"}
+      />
     </>
   )
 }
@@ -91,9 +96,11 @@ export function AddRepoButton({
 function AddRepoDialog({
   open,
   onOpenChange,
+  isAdmin = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  isAdmin?: boolean
 }) {
   const [url, setUrl] = React.useState("")
   const [note, setNote] = React.useState("")
@@ -156,13 +163,21 @@ function AddRepoDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: preview.sourceUrl, note }),
       })
-      const data = (await res.json()) as { error?: string; fullName?: string }
+      const data = (await res.json()) as {
+        error?: string
+        fullName?: string
+        immediate?: boolean
+      }
       if (!res.ok) {
         toast.error(data.error || "Submission failed")
         setError(data.error || "Submission failed")
         return
       }
-      toast.success(`${data.fullName ?? "Repo"} submitted for review`)
+      toast.success(
+        data.immediate
+          ? `${data.fullName ?? "Repo"} added to the directory`
+          : `${data.fullName ?? "Repo"} submitted for review`
+      )
       onOpenChange(false)
     } catch {
       toast.error("Could not submit repository")
@@ -176,11 +191,12 @@ function AddRepoDialog({
       <DialogContent className="sm:max-w-lg" showCloseButton>
         <DialogHeader>
           <DialogTitle className="normal-case tracking-tight">
-            Add a repository
+            {brandCopy.addRepo.title}
           </DialogTitle>
           <DialogDescription>
-            Paste a GitHub repository URL, fetch its details, then submit it for
-            admin approval. We’ll check for desktop release installers.
+            {isAdmin
+              ? brandCopy.addRepo.descriptionAdmin
+              : brandCopy.addRepo.descriptionUser}
           </DialogDescription>
         </DialogHeader>
 
@@ -278,17 +294,19 @@ function AddRepoDialog({
                 </ul>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="repo-note">Note for admins (optional)</Label>
-                <Textarea
-                  id="repo-note"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Why should this be listed?"
-                  className="min-h-20"
-                  disabled={submitting}
-                />
-              </div>
+              {!isAdmin ? (
+                <div className="space-y-2">
+                  <Label htmlFor="repo-note">Note for admins (optional)</Label>
+                  <Textarea
+                    id="repo-note"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Why should this be listed?"
+                    className="min-h-20"
+                    disabled={submitting}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -308,7 +326,13 @@ function AddRepoDialog({
               onClick={() => void submit()}
               disabled={submitting}
             >
-              {submitting ? "Submitting…" : "Submit for approval"}
+              {submitting
+                ? isAdmin
+                  ? "Adding…"
+                  : "Submitting…"
+                : isAdmin
+                  ? "Add to directory"
+                  : "Submit for approval"}
             </Button>
           ) : (
             <Button

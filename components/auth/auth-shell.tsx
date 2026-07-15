@@ -4,7 +4,9 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowLeftIcon } from "@phosphor-icons/react"
 
+import { BrandMark } from "@/components/layout/brand-mark"
 import { Button } from "@/components/ui/button"
+import { brandCopy } from "@/lib/brand"
 
 export function AuthShell({
   children,
@@ -48,17 +50,13 @@ export function AuthShell({
 
         <div className="relative w-full max-w-md">
           <div className="mb-8 text-center">
-            <Link
-              href="/"
-              className="font-heading text-2xl font-bold tracking-tight"
-            >
-              Releases
-              <span className="text-primary">.</span>
+            <Link href="/" className="inline-block text-2xl font-bold">
+              <BrandMark />
             </Link>
             <p className="mt-2 text-sm text-muted-foreground">
               {mode === "sign-in"
-                ? "Pick up your favorites and keep exploring."
-                : "Create an account to save desktop apps you love."}
+                ? brandCopy.auth.signInSupport
+                : brandCopy.auth.signUpSupport}
             </p>
           </div>
           {children}

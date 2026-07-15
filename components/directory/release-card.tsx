@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { GithubLogoIcon, StarIcon } from "@phosphor-icons/react"
 
+import { FeatureButton } from "@/components/admin/feature-button"
 import { PlatformBadges } from "@/components/directory/platform-badges"
 import { FavoriteButton } from "@/components/favorites/favorite-button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
@@ -24,8 +25,13 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
         "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/40 hover:shadow-[0_12px_40px_-20px_oklch(0.55_0.22_25_/_0.55)]"
       )}
     >
-      {/* Outside the link so favoriting doesn’t trigger NextTopLoader. */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Outside the link so actions don’t trigger NextTopLoader. */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
+        <FeatureButton
+          repositoryId={repo.id}
+          featured={repo.featured}
+          tone="subtle"
+        />
         <FavoriteButton
           repositoryId={repo.id}
           fullName={repo.full_name}
@@ -34,7 +40,7 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
       </div>
 
       <Link href={href} className="group flex h-full flex-col gap-4">
-        <CardHeader className="gap-3 pr-12">
+        <CardHeader className="gap-3 pr-16">
           <div className="flex items-start gap-3">
             <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
               {repo.avatar_url ? (

@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { DM_Sans, Geist_Mono, Space_Grotesk } from "next/font/google"
 import NextTopLoader from "nextjs-toploader"
 
@@ -6,6 +6,8 @@ import { QueryProvider } from "@/components/providers/query-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
 import { Toaster } from "@/components/ui/toaster"
+import { siteConfig } from "@/lib/brand"
+import { buildMetadata, websiteJsonLd } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 
 import "./globals.css"
@@ -26,12 +28,20 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  ...buildMetadata(),
   title: {
-    default: "Releases · Open source desktop apps",
-    template: "%s · Releases",
+    default: `${siteConfig.name} · ${siteConfig.tagline}`,
+    template: `%s · ${siteConfig.name}`,
   },
-  description:
-    "Browse the latest Windows, macOS, and Linux downloads from open source GitHub releases.",
+  category: "technology",
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#140c0c" },
+    { media: "(prefers-color-scheme: light)", color: "#faf8f7" },
+  ],
+  colorScheme: "dark light",
 }
 
 export default function RootLayout({
@@ -52,6 +62,12 @@ export default function RootLayout({
       )}
     >
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd()),
+          }}
+        />
         <ThemeProvider defaultTheme="dark" enableSystem={false}>
           <NextTopLoader
             color="var(--primary)"
