@@ -165,7 +165,6 @@ export function DirectoryPage() {
   const {
     data,
     isLoading,
-    isFetching,
     isFetchingNextPage,
     isError,
     error,
@@ -200,7 +199,6 @@ export function DirectoryPage() {
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-  const firstPage = data?.pages[0]
   const totalLoaded = filters?.repository_count ?? 0
   const platformFilters = filters?.platform_filters ?? [
     { id: "all" as const, label: "All", count: 0 },
@@ -224,7 +222,6 @@ export function DirectoryPage() {
     platformFilters.find((item) => item.id === platform) ?? platformFilters[0]!
   const ActivePlatformIcon = PLATFORM_ICONS[activePlatform.id]
   const languages = filters?.languages ?? []
-  const showing = firstPage?.total ?? 0
   const items = data?.pages.flatMap((page) => page.items) ?? []
   const loadedCount = items.length
 
