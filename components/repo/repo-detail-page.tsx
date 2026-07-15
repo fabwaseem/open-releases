@@ -13,11 +13,12 @@ import {
 } from "@phosphor-icons/react"
 
 import { PlatformBadges } from "@/components/directory/platform-badges"
+import { FavoriteButton } from "@/components/favorites/favorite-button"
+import { SiteHeader } from "@/components/layout/site-header"
 import { ReleaseNotes } from "@/components/markdown/release-notes"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDetectedDevice } from "@/hooks/use-detected-device"
@@ -46,20 +47,28 @@ export function RepoDetailPage({
   })
 
   if (isLoading) {
-    return <RepoDetailSkeleton />
+    return (
+      <>
+        <SiteHeader />
+        <RepoDetailSkeleton />
+      </>
+    )
   }
 
   if (isError || !data) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] px-4 py-16 text-center sm:px-6 lg:px-8">
-        <p className="font-heading text-2xl font-semibold">Repository not found</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {(error as Error)?.message || "This project is not in the catalog yet."}
-        </p>
-        <Button render={<Link href="/" />} className="mt-6 rounded-xl">
-          Back to directory
-        </Button>
-      </div>
+      <>
+        <SiteHeader />
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-16 text-center sm:px-6 lg:px-8">
+          <p className="font-heading text-2xl font-semibold">Repository not found</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {(error as Error)?.message || "This project is not in the catalog yet."}
+          </p>
+          <Button render={<Link href="/" />} className="mt-6 rounded-xl">
+            Back to directory
+          </Button>
+        </div>
+      </>
     )
   }
 
@@ -96,21 +105,29 @@ export function RepoDetailPage({
 
   return (
     <div className="relative min-h-svh bg-background">
+      <SiteHeader />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,oklch(0.45_0.2_25_/_0.18),transparent_65%)]"
       />
 
       <div className="relative mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-4 rounded-xl px-2 sm:mb-6"
-          render={<Link href="/" />}
-        >
-          <ArrowLeftIcon data-icon="inline-start" />
-          Directory
-        </Button>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-xl px-2"
+            render={<Link href="/" />}
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+            Directory
+          </Button>
+          <FavoriteButton
+            repositoryId={catalog.id}
+            fullName={catalog.full_name}
+            size="sm"
+          />
+        </div>
 
         <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm backdrop-blur-sm sm:rounded-3xl sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -133,6 +150,14 @@ export function RepoDetailPage({
                   <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-4xl">
                     {catalog.name}
                   </h1>
+                  {catalog.featured ? (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-none bg-primary/15 text-primary uppercase"
+                    >
+                      Featured
+                    </Badge>
+                  ) : null}
                   {tag ? (
                     <Badge className="rounded-md bg-primary px-2.5 py-1 text-[0.65rem] text-primary-foreground">
                       {tag}
@@ -152,7 +177,7 @@ export function RepoDetailPage({
                 </p>
 
                 <div className="mt-5 flex flex-wrap items-center gap-4 text-sm">
-                  <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-300">
                     <StarIcon className="size-4" weight="fill" />
                     {formatStars(stars)}
                   </span>
@@ -367,9 +392,9 @@ export function RepoDetailPage({
                 <CardTitle className="text-base">What’s new</CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[min(28rem,60vh)] pr-3">
+                <div className="max-h-[min(28rem,60vh)] overflow-y-auto pr-3">
                   <ReleaseNotes markdown={body} />
-                </ScrollArea>
+                </div>
               </CardContent>
             </Card>
           </section>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { getSession, isAdminRole } from "@/lib/session"
 
 export const dynamic = "force-dynamic"
 
@@ -7,10 +8,15 @@ type RouteContext = {
 }
 
 /**
- * Soft-hide a repository from the public directory.
+ * Soft-hide a repository from the public directory (admin only).
  * Body: { "reason"?: string, "hidden"?: boolean }
  */
 export async function POST(request: Request, context: RouteContext) {
+  const session = await getSession()
+  if (!session || !isAdminRole(session.user.role)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   const { owner, name } = await context.params
   if (!owner || !name) {
     return Response.json({ error: "Missing owner or name" }, { status: 400 })

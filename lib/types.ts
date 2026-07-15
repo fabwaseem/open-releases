@@ -24,6 +24,7 @@ export type LatestRelease = {
 }
 
 export type CatalogRepo = {
+  id: string
   full_name: string
   name: string
   owner: string
@@ -43,6 +44,8 @@ export type CatalogRepo = {
   has_linux: boolean
   /** Weighted activity score 0–100. */
   activity_score: number
+  /** Admin-featured; pinned on default directory sort. */
+  featured: boolean
   latest_release: LatestRelease
   scraped_at?: string
 }

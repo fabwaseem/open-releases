@@ -14,7 +14,12 @@ export function shardId(s: Shard) {
   return `stars:${s.starsMin}..${s.starsMax ?? "*"}|created:${s.createdStart}..${s.createdEnd}`
 }
 
-export function shardQuery(s: Shard, _minStars: number, pushedAfter: string) {
+export function shardQuery(
+  s: Shard,
+  _minStars: number,
+  pushedAfter: string,
+  searchQuery = ""
+) {
   const stars =
     s.starsMax == null
       ? `stars:>=${s.starsMin}`
@@ -22,6 +27,7 @@ export function shardQuery(s: Shard, _minStars: number, pushedAfter: string) {
         ? `stars:${s.starsMin}`
         : `stars:${s.starsMin}..${s.starsMax}`
   return [
+    searchQuery.trim(),
     `pushed:>=${pushedAfter}`,
     "is:public",
     "mirror:false",
@@ -29,7 +35,9 @@ export function shardQuery(s: Shard, _minStars: number, pushedAfter: string) {
     "fork:false",
     stars,
     `created:${s.createdStart}..${s.createdEnd}`,
-  ].join(" ")
+  ]
+    .filter(Boolean)
+    .join(" ")
 }
 
 function midDate(a: string, b: string) {

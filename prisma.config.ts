@@ -8,5 +8,9 @@ export default defineConfig({
   },
   datasource: {
     url: env("DATABASE_URL"),
+    // Used only by migrate diff / migrate dev — never touches app data.
+    shadowDatabaseUrl:
+      process.env.SHADOW_DATABASE_URL ??
+      "postgresql://postgres:root@localhost:5432/prisma_migrate_shadow?sslmode=disable",
   },
 })

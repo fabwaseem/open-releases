@@ -80,6 +80,7 @@ function toLatestRelease(
 export function toCatalogRepo(repo: RepoWithRelease): CatalogRepo | null {
   if (!repo.latestRelease) return null
   return {
+    id: repo.id,
     full_name: repo.fullName,
     name: repo.name,
     owner: repo.owner,
@@ -98,6 +99,7 @@ export function toCatalogRepo(repo: RepoWithRelease): CatalogRepo | null {
     has_macos: repo.hasMacos,
     has_linux: repo.hasLinux,
     activity_score: repo.activityScore ?? 0,
+    featured: Boolean(repo.featured),
     latest_release: toLatestRelease(repo.latestRelease),
     scraped_at: repo.scrapedAt.toISOString(),
   }
@@ -153,6 +155,8 @@ function buildWhere(params: ListQuery): Prisma.RepositoryWhereInput {
 function buildOrderBy(
   sort: SortKey
 ): Prisma.RepositoryOrderByWithRelationInput[] {
+  // Default sort pins featured repos first; filters still apply via `where`.
+  // Explicit sorts follow the user's choice without forcing featured to the top.
   switch (sort) {
     case "name":
       return [{ name: "asc" }]
@@ -167,7 +171,12 @@ function buildOrderBy(
       return [{ stars: "desc" }, { name: "asc" }]
     case "score":
     default:
-      return [{ activityScore: "desc" }, { stars: "desc" }]
+      return [
+        { featured: "desc" },
+        { featuredAt: "desc" },
+        { activityScore: "desc" },
+        { stars: "desc" },
+      ]
   }
 }
 

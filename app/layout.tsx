@@ -5,6 +5,7 @@ import NextTopLoader from "nextjs-toploader"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
+import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
 
 import "./globals.css"
@@ -60,6 +61,7 @@ export default function RootLayout({
           />
           <QueryProvider>{children}</QueryProvider>
           <ScrollToTop />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

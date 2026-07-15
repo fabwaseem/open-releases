@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react"
 
 import { ReleaseCard } from "@/components/directory/release-card"
+import { AddRepoButton } from "@/components/submissions/add-repo-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -162,13 +163,16 @@ export function DirectoryPage() {
                 <span className="text-primary">.</span>
               </h1>
             </div>
-            <div className="shrink-0 rounded-xl bg-primary px-2.5 py-2 text-center sm:rounded-2xl sm:px-4 sm:py-3">
-              <p className="text-lg leading-none font-bold text-primary-foreground tabular-nums sm:text-2xl">
-                {totalLoaded}
-              </p>
-              <p className="mt-1 text-[0.6rem] font-semibold tracking-wider text-primary-foreground/80 uppercase sm:text-[0.65rem]">
-                tools
-              </p>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <AddRepoButton variant="tile" />
+              <div className="flex size-11 flex-col items-center justify-center rounded-xl bg-primary text-center sm:size-[4.5rem] sm:rounded-2xl">
+                <p className="text-sm leading-none font-bold text-primary-foreground tabular-nums sm:text-2xl">
+                  {totalLoaded}
+                </p>
+                <p className="mt-0.5 text-[0.5rem] font-semibold tracking-wider text-primary-foreground/80 uppercase sm:mt-1 sm:text-[0.65rem]">
+                  tools
+                </p>
+              </div>
             </div>
           </div>
 
@@ -183,7 +187,6 @@ export function DirectoryPage() {
               release.
             </span>
           </p>
-
         </header>
 
         <section className="mb-6 space-y-3 sm:mb-8 sm:space-y-4">

@@ -30,6 +30,9 @@ model Repository {
   /// Soft-hide from the public directory without deleting scrape history.
   hidden        Boolean   @default(false)
   hiddenReason  String?
+  /// Pinned near the top of the default directory sort (still respects filters).
+  featured      Boolean   @default(false)
+  featuredAt    DateTime?
   scrapedAt     DateTime  @default(now())
   releaseCheckedAt DateTime?
 
@@ -51,14 +54,18 @@ model Repository {
 
   latestRelease Release?
   scrapeRecord  ScrapeRecord?
+  favorites     Favorite[]
+  submissions   RepoSubmission[]
 
   @@index([hidden, activityScore])
+  @@index([hidden, featured, activityScore])
   @@index([hidden, stars])
   @@index([pushedAt])
   @@index([hasWindows])
   @@index([hasMacos])
   @@index([hasLinux])
   @@index([language])
+  @@index([featured])
 }
 
 model Release {
@@ -99,4 +106,118 @@ model ScrapeRecord {
 
   @@index([status])
   @@index([lastSeenAt])
+}
+
+// ——— better-auth ———
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String    @default("user")
+  banned        Boolean   @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+  favorites     Favorite[]
+  submissions   RepoSubmission[] @relation("SubmittedRepos")
+  reviews       RepoSubmission[] @relation("ReviewedRepos")
+
+  @@unique([email])
+  @@map("user")
+}
+
+/// User-submitted repo awaiting admin approval before entering the catalog.
+model RepoSubmission {
+  id            String    @id @default(cuid())
+  fullName      String
+  sourceUrl     String
+  /// pending | approved | rejected
+  status        String    @default("pending")
+  note          String?
+  reviewNote    String?
+  /// Snapshot from GitHub preview at submit time.
+  preview       Json
+  submittedById String
+  submittedBy   User      @relation("SubmittedRepos", fields: [submittedById], references: [id], onDelete: Cascade)
+  reviewedById  String?
+  reviewedBy    User?     @relation("ReviewedRepos", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  repositoryId  String?
+  repository    Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([fullName])
+  @@index([submittedById])
+  @@map("repo_submission")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Favorite {
+  id           String     @id @default(cuid())
+  userId       String
+  repositoryId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, repositoryId])
+  @@index([userId])
+  @@index([repositoryId])
+  @@map("favorite")
 }

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { GithubLogoIcon, StarIcon } from "@phosphor-icons/react"
 
 import { PlatformBadges } from "@/components/directory/platform-badges"
-import { Badge } from "@/components/ui/badge"
+import { FavoriteButton } from "@/components/favorites/favorite-button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { formatRelativeDate, formatStars } from "@/lib/format"
 import type { CatalogRepo } from "@/lib/types"
@@ -14,20 +14,27 @@ import { cn } from "@/lib/utils"
 export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
   const tag = repo.latest_release?.tag
   const topics = (repo.topics ?? []).slice(0, 4)
+  const href = `/repo/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`
 
   return (
-    <Link
-      href={`/repo/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`}
-      className="group block h-full"
+    <Card
+      size="sm"
+      className={cn(
+        "relative h-full rounded-2xl bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color] duration-200",
+        "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/40 hover:shadow-[0_12px_40px_-20px_oklch(0.55_0.22_25_/_0.55)]"
+      )}
     >
-      <Card
-        size="sm"
-        className={cn(
-          "h-full rounded-2xl bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color] duration-200",
-          "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/40 hover:shadow-[0_12px_40px_-20px_oklch(0.55_0.22_25_/_0.55)]"
-        )}
-      >
-        <CardHeader className="gap-3">
+      {/* Outside the link so favoriting doesn’t trigger NextTopLoader. */}
+      <div className="absolute top-4 right-4 z-10">
+        <FavoriteButton
+          repositoryId={repo.id}
+          fullName={repo.full_name}
+          tone="subtle"
+        />
+      </div>
+
+      <Link href={href} className="group flex h-full flex-col gap-4">
+        <CardHeader className="gap-3 pr-12">
           <div className="flex items-start gap-3">
             <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
               {repo.avatar_url ? (
@@ -45,23 +52,32 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <h3 className="font-heading truncate text-base font-semibold tracking-tight text-foreground">
                   {repo.name}
                 </h3>
-                {tag ? (
-                  <Badge
-                    className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-[0.6rem] tracking-wide text-primary-foreground"
-                    variant="default"
-                  >
-                    {tag}
-                  </Badge>
+                {repo.featured ? (
+                  <span className="shrink-0 bg-primary/15 px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-widest text-primary uppercase">
+                    Featured
+                  </span>
                 ) : null}
               </div>
-              <p className="truncate text-xs text-muted-foreground">{repo.full_name}</p>
+              <div className="mt-1 flex min-w-0 items-center gap-2">
+                <p className="truncate text-xs text-foreground/65">
+                  {repo.full_name}
+                </p>
+                {tag ? (
+                  <span
+                    title={tag}
+                    className="inline-flex h-5 max-w-24 shrink-0 items-center truncate border border-border bg-muted px-1.5 font-mono text-[0.65rem] text-foreground/75"
+                  >
+                    {tag}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
-          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-muted-foreground">
+          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-foreground/70">
             {repo.description || "No description provided."}
           </p>
           {topics.length > 0 ? (
@@ -69,7 +85,7 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
               {topics.map((topic) => (
                 <span
                   key={topic}
-                  className="rounded-md bg-muted/70 px-1.5 py-0.5 text-[0.65rem] text-muted-foreground"
+                  className="rounded-md bg-muted px-1.5 py-0.5 text-[0.65rem] text-foreground/65"
                 >
                   #{topic}
                 </span>
@@ -77,11 +93,11 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
             </div>
           ) : null}
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent>
           <PlatformBadges platforms={repo.platforms} />
         </CardContent>
-        <CardFooter className="mt-auto flex items-center justify-between gap-3 border-t border-border/50 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1 font-medium text-amber-300">
+        <CardFooter className="mt-auto flex items-center justify-between gap-3 border-t border-border text-xs text-foreground/65">
+          <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-300">
             <StarIcon className="size-3.5" weight="fill" />
             {formatStars(repo.stars)}
           </span>
@@ -93,7 +109,7 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
             {formatRelativeDate(repo.latest_release?.published_at)}
           </span>
         </CardFooter>
-      </Card>
-    </Link>
+      </Link>
+    </Card>
   )
 }

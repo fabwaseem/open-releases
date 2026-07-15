@@ -9,6 +9,8 @@
  * Usage:
  *   pnpm scrape
  *   pnpm scrape -- --min-stars 500 --max-repos 100
+ *   pnpm scrape -- --query downloader --max-repos 50
+ *   pnpm scrape -- --query "topic:downloader" --min-stars 50
  */
 import "dotenv/config"
 
@@ -29,6 +31,7 @@ import {
 } from "./store.js"
 
 type Args = {
+  query: string
   minStars: number
   maxRepos: number
   pushedAfter: string
@@ -40,6 +43,7 @@ function parseArgs(argv: string[]): Args {
     return i >= 0 && argv[i + 1] ? argv[i + 1]! : fallback
   }
   return {
+    query: get("--query", get("-q", "")),
     minStars: Number(get("--min-stars", "100")),
     maxRepos: Number(get("--max-repos", "0")),
     pushedAfter: get("--pushed-after", yearsAgo(5)),
@@ -100,8 +104,14 @@ async function streamShardHtml(
   stats: Record<string, number>,
   discovery: StreamingDiscovery
 ): Promise<boolean> {
-  const query = shardQuery(shard, args.minStars, args.pushedAfter)
+  const query = shardQuery(
+    shard,
+    args.minStars,
+    args.pushedAfter,
+    args.query
+  )
   console.log(`shard ${shardId(shard)}`)
+  console.log(`  q: ${query}`)
   let lastPageCount = 0
   let reachedEnd = false
 
@@ -163,7 +173,7 @@ async function main() {
   }
 
   console.log(
-    `scrape start (html+rest) minStars=${args.minStars} pushedAfter=${args.pushedAfter}`
+    `scrape start (html+rest) query=${args.query ? JSON.stringify(args.query) : "(none)"} minStars=${args.minStars} pushedAfter=${args.pushedAfter}`
   )
 
   const discovery = new StreamingDiscovery({

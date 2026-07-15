@@ -14,17 +14,17 @@ const PLATFORM_META: Record<
   windows: {
     label: "Windows",
     icon: WindowsLogoIcon,
-    className: "text-sky-400",
+    className: "text-sky-700 dark:text-sky-400",
   },
   macos: {
     label: "macOS",
     icon: AppleLogoIcon,
-    className: "text-zinc-200",
+    className: "text-zinc-700 dark:text-zinc-300",
   },
   linux: {
     label: "Linux",
     icon: LinuxLogoIcon,
-    className: "text-amber-300",
+    className: "text-amber-700 dark:text-amber-300",
   },
 }
 
