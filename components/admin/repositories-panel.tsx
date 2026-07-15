@@ -62,6 +62,8 @@ function platformLabel(repo: AdminRepo) {
     repo.hasWindows ? "Win" : null,
     repo.hasMacos ? "Mac" : null,
     repo.hasLinux ? "Linux" : null,
+    repo.hasAndroid ? "Android" : null,
+    repo.hasIos ? "iOS" : null,
   ].filter(Boolean)
   return parts.length ? parts.join(" · ") : "—"
 }
@@ -271,13 +273,14 @@ export function RepositoriesPanel() {
             >
               <SelectTrigger className="h-10 w-full min-w-0 border border-border/70 bg-background/50 px-3">
                 <SelectValue placeholder="Platform">
-                  {platform === "all"
-                    ? "All platforms"
-                    : platform === "macos"
-                      ? "macOS"
-                      : platform === "windows"
-                        ? "Windows"
-                        : "Linux"}
+                  {{
+                    all: "All platforms",
+                    windows: "Windows",
+                    macos: "macOS",
+                    linux: "Linux",
+                    android: "Android",
+                    ios: "iOS",
+                  }[platform] ?? "Platform"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -285,6 +288,8 @@ export function RepositoriesPanel() {
                 <SelectItem value="windows">Windows</SelectItem>
                 <SelectItem value="macos">macOS</SelectItem>
                 <SelectItem value="linux">Linux</SelectItem>
+                <SelectItem value="android">Android</SelectItem>
+                <SelectItem value="ios">iOS</SelectItem>
               </SelectContent>
             </Select>
             <Select

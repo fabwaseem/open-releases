@@ -12,23 +12,25 @@ export const siteConfig = {
    * Used in SVG logo, favicon, manifest, and OG assets that need a hex color.
    */
   primary: "#f51d31",
-  tagline: "Desktop apps from open source, ready to download.",
+  tagline: "Open-source apps with real release downloads.",
   description:
-    "Browse a living directory of open-source Windows, macOS, and Linux apps shipping on GitHub Releases. Search, filter by platform, and open the latest installer.",
+    "Browse a living directory of open-source Windows, macOS, Linux, Android, and iOS apps shipping on GitHub Releases. Search, filter by platform, and open the latest installer.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
     "https://open-releases.vercel.app",
   locale: "en_US",
   creator: "Open Releases",
   keywords: [
-    "open source desktop apps",
+    "open source apps",
     "GitHub releases",
     "Windows open source software",
     "macOS open source apps",
     "Linux desktop apps",
+    "Android open source APK",
+    "iOS open source IPA",
     "open source downloads",
     "desktop installers",
-    "GitHub desktop software",
+    "mobile app releases",
     "open source directory",
     "latest GitHub releases",
   ],
@@ -38,12 +40,12 @@ export const brandCopy = {
   logoText: "Open Releases",
 
   hero: {
-    eyebrow: "Open source · Desktop",
-    title: "Desktop apps ready to install",
+    eyebrow: "Open source · Releases",
+    title: "Apps ready to install",
     descriptionMobile:
-      "Windows, macOS & Linux apps from GitHub — search and open the latest release.",
+      "Windows, macOS, Linux, Android & iOS from GitHub — search and open the latest release.",
     description:
-      "A living directory of open-source projects with real Windows, macOS, and Linux installers. Search, filter, and jump straight to the latest GitHub release.",
+      "A living directory of open-source projects with real installers: Windows, macOS, Linux, Android, and iOS. Search, filter, and jump straight to the latest GitHub release.",
   },
 
   search: {
@@ -75,9 +77,9 @@ export const brandCopy = {
   addRepo: {
     title: "Add a repository",
     descriptionAdmin:
-      "Paste a GitHub repository URL, fetch its details, then add it to Open Releases. We’ll verify desktop installers in the latest releases.",
+      "Paste a GitHub repository URL, fetch its details, then add it to Open Releases. We’ll verify installers (desktop or mobile) in the latest releases.",
     descriptionUser:
-      "Paste a GitHub repository URL, fetch its details, then submit it for review. We’ll verify desktop installers in the latest releases.",
+      "Paste a GitHub repository URL, fetch its details, then submit it for review. We’ll verify installers (desktop or mobile) in the latest releases.",
   },
 
   repo: {

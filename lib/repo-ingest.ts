@@ -157,7 +157,7 @@ export async function previewGithubRepo(
         ok: false,
         code: "no_assets",
         error:
-          "No desktop installers found in releases (exe, msi, dmg, pkg, AppImage, deb, rpm, etc.).",
+          "No installers found in releases (exe, msi, dmg, pkg, AppImage, deb, rpm, apk, ipa, etc.).",
       }
     }
 
@@ -249,7 +249,7 @@ export async function ingestGithubRepo(
   if (!releases.length) throw new Error("Repository has no releases")
 
   const picked = pickUsableRelease(releases)
-  if (!picked) throw new Error("No desktop installer assets found")
+  if (!picked) throw new Error("No installer assets found (desktop or mobile)")
 
   const summary = summarizePlatforms(picked.assets)
   const activity = await fetchActivitySignals(canonOwner, canonName, repo)
@@ -301,6 +301,8 @@ export async function ingestGithubRepo(
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
       hidden: false,
       hiddenReason: null,
       scrapedAt: new Date(),
@@ -317,6 +319,8 @@ export async function ingestGithubRepo(
           hasWindows: summary.hasWindows,
           hasMacos: summary.hasMacos,
           hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
           assets: assets as unknown as object,
         },
       },
@@ -338,6 +342,8 @@ export async function ingestGithubRepo(
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
       hidden: false,
       hiddenReason: null,
       scrapedAt: new Date(),
@@ -355,6 +361,8 @@ export async function ingestGithubRepo(
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
           update: {
@@ -368,6 +376,8 @@ export async function ingestGithubRepo(
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
         },

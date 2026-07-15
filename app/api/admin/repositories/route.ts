@@ -63,7 +63,11 @@ export async function GET(request: NextRequest) {
         ? { hasMacos: true }
         : platform === "linux"
           ? { hasLinux: true }
-          : {}),
+          : platform === "android"
+            ? { hasAndroid: true }
+            : platform === "ios"
+              ? { hasIos: true }
+              : {}),
     ...(minStars > 0 ? { stars: { gte: minStars } } : {}),
     ...(q
       ? {
@@ -107,6 +111,8 @@ export async function GET(request: NextRequest) {
         hasWindows: true,
         hasMacos: true,
         hasLinux: true,
+        hasAndroid: true,
+        hasIos: true,
         _count: { select: { favorites: true } },
       },
     }),

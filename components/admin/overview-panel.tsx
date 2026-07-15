@@ -180,9 +180,9 @@ export function OverviewPanel() {
           <StatCard label="Favorites" value={t.favorites} icon={HeartIcon} />
           <StatCard
             label="Platforms"
-            value={`${t.platforms.windows}/${t.platforms.macos}/${t.platforms.linux}`}
+            value={`${t.platforms.windows}/${t.platforms.macos}/${t.platforms.linux}/${t.platforms.android}/${t.platforms.ios}`}
             icon={HardDrivesIcon}
-            hint="Win / Mac / Linux"
+            hint="Win / Mac / Linux / Android / iOS"
           />
         </div>
 

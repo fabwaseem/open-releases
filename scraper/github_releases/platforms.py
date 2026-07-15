@@ -3,14 +3,33 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-# Installer / app package heuristics for the frontend directory.
-_DESKTOP_ASSET_RULES: list[tuple[str, re.Pattern[str]]] = [
-    # Windows: installers only (exe / msi family).
+# Installer / app package heuristics for the catalog.
+_ASSET_RULES: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "android",
+        re.compile(
+            r"(?i)("
+            r"\.apk$|\.aab$|"
+            r"[-_.](android|android-arm64|android-arm|android-x86|android-x86_64|"
+            r"armeabi-v7a|arm64-v8a)"
+            r"([-_.].*)?\.(apk|aab|zip)$"
+            r")"
+        ),
+    ),
+    (
+        "ios",
+        re.compile(
+            r"(?i)("
+            r"\.ipa$|"
+            r"[-_.](ios|iphone|ipad|apple-ios)"
+            r"([-_.].*)?\.(ipa|zip)$"
+            r")"
+        ),
+    ),
     (
         "windows",
         re.compile(r"(?i)\.(exe|msi|msix|msixbundle|appx)$"),
     ),
-    # macOS: dmg / pkg, or explicit darwin/macos archives.
     (
         "macos",
         re.compile(
@@ -23,7 +42,6 @@ _DESKTOP_ASSET_RULES: list[tuple[str, re.Pattern[str]]] = [
             r")"
         ),
     ),
-    # Linux: package formats + explicit linux binaries/archives.
     (
         "linux",
         re.compile(
@@ -38,7 +56,6 @@ _DESKTOP_ASSET_RULES: list[tuple[str, re.Pattern[str]]] = [
     ),
 ]
 
-# Debug/symbol/source noise to always drop.
 _SKIP_ASSET = re.compile(
     r"(?i)("
     r"\.(pdb|dSYM|dSYMs)(\.|$)|[-_.](pdb|dsym|dbsym|symbols?)([-_.]|$)|"
@@ -47,27 +64,27 @@ _SKIP_ASSET = re.compile(
     r")"
 )
 
-_DESKTOP = frozenset({"windows", "macos", "linux"})
+_KNOWN = frozenset({"windows", "macos", "linux", "android", "ios"})
 
 
 def detect_platforms_from_name(name: str) -> list[str]:
-    """Return desktop platform tags for an asset filename."""
+    """Return platform tags for an asset filename."""
     if _SKIP_ASSET.search(name):
         return []
     platforms: list[str] = []
-    for label, pattern in _DESKTOP_ASSET_RULES:
+    for label, pattern in _ASSET_RULES:
         if pattern.search(name):
             platforms.append(label)
     return platforms
 
 
 def is_desktop_app_asset(name: str) -> bool:
-    """True when the file looks like a Windows/macOS/Linux app installable."""
+    """True when the file looks like an installable app package."""
     return bool(detect_platforms_from_name(name))
 
 
 def filter_desktop_assets(assets: Iterable[dict]) -> list[dict]:
-    """Keep only exe/msi/mac/linux application packages."""
+    """Keep Win/Mac/Linux/Android/iOS application packages."""
     kept: list[dict] = []
     for asset in assets:
         name = asset.get("name") or ""
@@ -76,7 +93,6 @@ def filter_desktop_assets(assets: Iterable[dict]) -> list[dict]:
             continue
         item = dict(asset)
         item["platforms"] = platforms
-        # Collapse to primary platform for UI grouping.
         item["platform"] = platforms[0]
         kept.append(item)
     return kept
@@ -85,13 +101,16 @@ def filter_desktop_assets(assets: Iterable[dict]) -> list[dict]:
 def summarize_platforms(assets: Iterable[dict]) -> dict:
     platforms: set[str] = set()
     for asset in assets:
-        for p in asset.get("platforms") or detect_platforms_from_name(asset.get("name") or ""):
-            if p in _DESKTOP:
+        for p in asset.get("platforms") or detect_platforms_from_name(
+            asset.get("name") or ""
+        ):
+            if p in _KNOWN:
                 platforms.add(p)
-    desktop = sorted(platforms)
     return {
-        "platforms": desktop,
+        "platforms": sorted(platforms),
         "has_windows": "windows" in platforms,
         "has_macos": "macos" in platforms,
         "has_linux": "linux" in platforms,
+        "has_android": "android" in platforms,
+        "has_ios": "ios" in platforms,
     }

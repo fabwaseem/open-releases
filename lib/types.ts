@@ -1,4 +1,4 @@
-export type Platform = "windows" | "macos" | "linux"
+export type Platform = "windows" | "macos" | "linux" | "android" | "ios"
 
 export type SortKey = "score" | "stars" | "updated" | "name" | "released"
 
@@ -21,6 +21,8 @@ export type LatestRelease = {
   has_windows: boolean
   has_macos: boolean
   has_linux: boolean
+  has_android: boolean
+  has_ios: boolean
 }
 
 export type CatalogRepo = {
@@ -42,6 +44,8 @@ export type CatalogRepo = {
   has_windows: boolean
   has_macos: boolean
   has_linux: boolean
+  has_android: boolean
+  has_ios: boolean
   /** Weighted activity score 0–100. */
   activity_score: number
   /** Admin-featured; pinned on default directory sort. */

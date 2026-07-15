@@ -8,7 +8,13 @@ export type AdminStats = {
     bannedUsers: number
     favorites: number
     pendingSubmissions: number
-    platforms: { windows: number; macos: number; linux: number }
+    platforms: {
+      windows: number
+      macos: number
+      linux: number
+      android: number
+      ios: number
+    }
   }
   scrapeByStatus: { status: string; count: number }[]
   topLanguages: { name: string; count: number }[]
@@ -45,6 +51,8 @@ export type AdminRepo = {
   hasWindows: boolean
   hasMacos: boolean
   hasLinux: boolean
+  hasAndroid: boolean
+  hasIos: boolean
   _count: { favorites: number }
 }
 

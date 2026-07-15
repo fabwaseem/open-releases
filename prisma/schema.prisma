@@ -27,6 +27,8 @@ model Repository {
   hasWindows    Boolean   @default(false)
   hasMacos      Boolean   @default(false)
   hasLinux      Boolean   @default(false)
+  hasAndroid    Boolean   @default(false)
+  hasIos        Boolean   @default(false)
   /// Soft-hide from the public directory without deleting scrape history.
   hidden        Boolean   @default(false)
   hiddenReason  String?
@@ -64,6 +66,8 @@ model Repository {
   @@index([hasWindows])
   @@index([hasMacos])
   @@index([hasLinux])
+  @@index([hasAndroid])
+  @@index([hasIos])
   @@index([language])
   @@index([featured])
 }
@@ -82,7 +86,9 @@ model Release {
   hasWindows   Boolean   @default(false)
   hasMacos     Boolean   @default(false)
   hasLinux     Boolean   @default(false)
-  /// Desktop installer assets (exe/msi/dmg/pkg/deb/AppImage/…)
+  hasAndroid   Boolean   @default(false)
+  hasIos       Boolean   @default(false)
+  /// Installer / app packages (exe, dmg, AppImage, apk, ipa, …)
   assets       Json      @default("[]")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

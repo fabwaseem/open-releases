@@ -29,7 +29,7 @@ export async function generateMetadata({
   const title = catalog.name ? `${catalog.name} (${fullName})` : fullName
   const description =
     catalog.description?.trim() ||
-    `Download the latest open-source desktop release for ${fullName} on ${siteConfig.name} — Windows, macOS, and Linux installers from GitHub.`
+    `Download the latest open-source release for ${fullName} on ${siteConfig.name} — Windows, macOS, Linux, Android, and iOS installers from GitHub.`
 
   return buildMetadata({
     title,

@@ -78,7 +78,7 @@ function repoCreateData(
     ...rest,
     createdAt,
     updatedAt,
-  }
+  } as Prisma.RepositoryCreateInput
 }
 
 function repoUpdateData(
@@ -91,7 +91,7 @@ function repoUpdateData(
     fullName: _fullName,
     ...rest
   } = repo
-  return rest
+  return rest as Prisma.RepositoryUpdateInput
 }
 
 async function migrateRepos(
@@ -152,8 +152,8 @@ async function migrateRepos(
             ...releaseFields,
             createdAt,
             updatedAt,
-          },
-          update: releaseFields,
+          } as Prisma.ReleaseUncheckedCreateInput,
+          update: releaseFields as Prisma.ReleaseUpdateInput,
         })
         releasesUpserted += 1
       }

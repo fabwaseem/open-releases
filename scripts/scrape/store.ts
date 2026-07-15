@@ -130,7 +130,7 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
 
   const picked = pickLatest(releases)
   if (!picked) {
-    await markScrape(fullName, "skipped_no_assets", "no desktop installers")
+    await markScrape(fullName, "skipped_no_assets", "no installable release assets")
     return { saved: false as const, reason: "no_assets" }
   }
 
@@ -167,6 +167,8 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
       hidden: false,
       scrapedAt: new Date(),
       latestRelease: {
@@ -181,6 +183,8 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
           hasWindows: summary.hasWindows,
           hasMacos: summary.hasMacos,
           hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
           assets: assets as unknown as object,
         },
       },
@@ -202,6 +206,8 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
       scrapedAt: new Date(),
       latestRelease: {
         upsert: {
@@ -216,6 +222,8 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
           update: {
@@ -229,6 +237,8 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
         },
@@ -363,7 +373,7 @@ export async function saveRepoFromRest(
     )
 
   if (!usable.length) {
-    await markScrape(fullName, "skipped_no_assets", "no desktop installers")
+    await markScrape(fullName, "skipped_no_assets", "no installable release assets")
     return { saved: false as const, reason: "no_assets" }
   }
 
@@ -404,6 +414,8 @@ export async function saveRepoFromRest(
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
       hidden: false,
       scrapedAt: new Date(),
       ...scoreFields,
@@ -419,6 +431,8 @@ export async function saveRepoFromRest(
           hasWindows: summary.hasWindows,
           hasMacos: summary.hasMacos,
           hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
           assets: assets as unknown as object,
         },
       },
@@ -440,6 +454,8 @@ export async function saveRepoFromRest(
       hasWindows: summary.hasWindows,
       hasMacos: summary.hasMacos,
       hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
       scrapedAt: new Date(),
       ...scoreFields,
       latestRelease: {
@@ -455,6 +471,8 @@ export async function saveRepoFromRest(
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
           update: {
@@ -468,6 +486,8 @@ export async function saveRepoFromRest(
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
             assets: assets as unknown as object,
           },
         },

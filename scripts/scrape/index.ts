@@ -86,7 +86,7 @@ async function processFullName(
       console.log(`skip ${fullName}: no releases`)
     } else {
       stats.skipped_no_assets += 1
-      console.log(`skip ${fullName}: no desktop assets`)
+      console.log(`skip ${fullName}: no installable assets`)
     }
   } catch (err) {
     if (err instanceof RateLimitError) throw err

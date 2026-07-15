@@ -139,7 +139,12 @@ function classifyError(message: string): keyof Stats | "retryable" | "other" {
   if (m.includes("not found")) return "notFound"
   if (m.includes("private")) return "private"
   if (m.includes("no releases")) return "skippedNoReleases"
-  if (m.includes("no desktop installer") || m.includes("no desktop assets")) {
+  if (
+    m.includes("no desktop installer") ||
+    m.includes("no desktop assets") ||
+    m.includes("no installer assets") ||
+    m.includes("no installers found")
+  ) {
     return "skippedNoAssets"
   }
   return "other"
@@ -294,7 +299,7 @@ async function main() {
       } else if (kind === "skippedNoAssets") {
         stats.skippedNoAssets += 1
         await markFailed(entry.fullName, "skipped_no_assets", result.message)
-        console.log(`no desktop assets`)
+        console.log(`no installable assets`)
       } else {
         stats.errors += 1
         await markFailed(entry.fullName, "error", result.message)

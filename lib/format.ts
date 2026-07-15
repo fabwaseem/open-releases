@@ -38,6 +38,10 @@ export function platformLabel(platform: string): string {
       return "macOS"
     case "linux":
       return "Linux"
+    case "android":
+      return "Android"
+    case "ios":
+      return "iOS"
     default:
       return platform
   }

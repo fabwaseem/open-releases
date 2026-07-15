@@ -100,13 +100,21 @@ export function websiteJsonLd() {
   }
 }
 
-/** Per-repo structured data for download / desktop app pages. */
+/** Per-repo structured data for download / app pages. */
 export function softwareApplicationJsonLd(repo: CatalogRepo) {
   const pageUrl = absoluteUrl(
     `/repo/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`
   )
   const operatingSystem = repo.platforms.map(platformLabel).join(", ")
   const release = repo.latest_release
+  const hasDesktop = repo.platforms.some((p) =>
+    p === "windows" || p === "macos" || p === "linux"
+  )
+  const hasMobile = repo.platforms.some((p) => p === "android" || p === "ios")
+  const applicationCategory =
+    hasMobile && !hasDesktop
+      ? "MobileApplication"
+      : "DesktopApplication"
 
   const offers =
     release.assets.length > 0
@@ -135,10 +143,10 @@ export function softwareApplicationJsonLd(repo: CatalogRepo) {
         alternateName: repo.full_name,
         description:
           repo.description?.trim() ||
-          `Open-source desktop app ${repo.full_name} with installers on GitHub Releases.`,
+          `Open-source app ${repo.full_name} with installers on GitHub Releases.`,
         url: pageUrl,
         downloadUrl: release.url ?? repo.url,
-        applicationCategory: "DesktopApplication",
+        applicationCategory,
         operatingSystem: operatingSystem || undefined,
         softwareVersion: release.tag || undefined,
         image: repo.avatar_url || undefined,

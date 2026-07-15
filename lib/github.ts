@@ -121,6 +121,8 @@ async function syncLatestReleaseIfChanged(
             hasWindows: summary.hasWindows,
             hasMacos: summary.hasMacos,
             hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
             latestRelease: {
               upsert: {
                 create: {
@@ -134,6 +136,8 @@ async function syncLatestReleaseIfChanged(
                   hasWindows: summary.hasWindows,
                   hasMacos: summary.hasMacos,
                   hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
                   assets: desktop,
                 },
                 update: {
@@ -147,6 +151,8 @@ async function syncLatestReleaseIfChanged(
                   hasWindows: summary.hasWindows,
                   hasMacos: summary.hasMacos,
                   hasLinux: summary.hasLinux,
+            hasAndroid: summary.hasAndroid,
+            hasIos: summary.hasIos,
                   assets: desktop,
                 },
               },

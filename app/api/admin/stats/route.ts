@@ -56,6 +56,8 @@ export async function GET() {
         hasWindows: true,
         hasMacos: true,
         hasLinux: true,
+        hasAndroid: true,
+        hasIos: true,
       },
     }),
     prisma.user.findMany({
@@ -72,7 +74,7 @@ export async function GET() {
     }),
   ])
 
-  const [windows, macos, linux] = await Promise.all([
+  const [windows, macos, linux, android, ios] = await Promise.all([
     prisma.repository.count({
       where: { hidden: false, hasWindows: true, latestRelease: { isNot: null } },
     }),
@@ -81,6 +83,16 @@ export async function GET() {
     }),
     prisma.repository.count({
       where: { hidden: false, hasLinux: true, latestRelease: { isNot: null } },
+    }),
+    prisma.repository.count({
+      where: {
+        hidden: false,
+        hasAndroid: true,
+        latestRelease: { isNot: null },
+      },
+    }),
+    prisma.repository.count({
+      where: { hidden: false, hasIos: true, latestRelease: { isNot: null } },
     }),
   ])
 
@@ -94,7 +106,7 @@ export async function GET() {
       bannedUsers,
       favorites,
       pendingSubmissions,
-      platforms: { windows, macos, linux },
+      platforms: { windows, macos, linux, android, ios },
     },
     scrapeByStatus: scrapeByStatus.map((s) => ({
       status: s.status,

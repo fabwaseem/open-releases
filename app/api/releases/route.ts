@@ -5,7 +5,14 @@ import type { Platform, SortKey } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
-const PLATFORMS = new Set(["all", "windows", "macos", "linux"])
+const PLATFORMS = new Set([
+  "all",
+  "windows",
+  "macos",
+  "linux",
+  "android",
+  "ios",
+])
 const SORTS = new Set(["score", "stars", "updated", "name", "released"])
 
 export async function GET(request: NextRequest) {

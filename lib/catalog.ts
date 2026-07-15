@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { isPlatform } from "@/lib/platforms"
 import type {
   CatalogRepo,
   LatestRelease,
@@ -37,9 +38,7 @@ function asStringArray(value: unknown): string[] {
 }
 
 function asPlatforms(value: unknown): Platform[] {
-  return asStringArray(value).filter(
-    (p): p is Platform => p === "windows" || p === "macos" || p === "linux"
-  )
+  return asStringArray(value).filter(isPlatform)
 }
 
 function asAssets(value: unknown): ReleaseAsset[] {
@@ -74,6 +73,8 @@ function toLatestRelease(
     has_windows: release.hasWindows,
     has_macos: release.hasMacos,
     has_linux: release.hasLinux,
+    has_android: release.hasAndroid,
+    has_ios: release.hasIos,
   }
 }
 
@@ -98,6 +99,8 @@ export function toCatalogRepo(repo: RepoWithRelease): CatalogRepo | null {
     has_windows: repo.hasWindows,
     has_macos: repo.hasMacos,
     has_linux: repo.hasLinux,
+    has_android: repo.hasAndroid,
+    has_ios: repo.hasIos,
     activity_score: repo.activityScore ?? 0,
     featured: Boolean(repo.featured),
     latest_release: toLatestRelease(repo.latestRelease),
@@ -134,6 +137,8 @@ function buildWhere(params: ListQuery): Prisma.RepositoryWhereInput {
   if (platform === "windows") where.hasWindows = true
   else if (platform === "macos") where.hasMacos = true
   else if (platform === "linux") where.hasLinux = true
+  else if (platform === "android") where.hasAndroid = true
+  else if (platform === "ios") where.hasIos = true
 
   if (language) {
     where.language = { equals: language, mode: "insensitive" }
@@ -187,28 +192,41 @@ export async function getCatalogFilters(): Promise<ReleasesFiltersResponse> {
     latestRelease: { isNot: null },
   }
 
-  const [repository_count, windows, macos, linux, languageGroups] =
-    await Promise.all([
-      prisma.repository.count({ where: baseWhere }),
-      prisma.repository.count({
-        where: { ...baseWhere, hasWindows: true },
-      }),
-      prisma.repository.count({
-        where: { ...baseWhere, hasMacos: true },
-      }),
-      prisma.repository.count({
-        where: { ...baseWhere, hasLinux: true },
-      }),
-      prisma.repository.groupBy({
-        by: ["language"],
-        where: { ...baseWhere, language: { not: null } },
-        _count: { language: true },
-        orderBy: { _count: { language: "desc" } },
-        take: 40,
-      }),
-    ])
+  const [
+    repository_count,
+    windows,
+    macos,
+    linux,
+    android,
+    ios,
+    languageGroups,
+  ] = await Promise.all([
+    prisma.repository.count({ where: baseWhere }),
+    prisma.repository.count({
+      where: { ...baseWhere, hasWindows: true },
+    }),
+    prisma.repository.count({
+      where: { ...baseWhere, hasMacos: true },
+    }),
+    prisma.repository.count({
+      where: { ...baseWhere, hasLinux: true },
+    }),
+    prisma.repository.count({
+      where: { ...baseWhere, hasAndroid: true },
+    }),
+    prisma.repository.count({
+      where: { ...baseWhere, hasIos: true },
+    }),
+    prisma.repository.groupBy({
+      by: ["language"],
+      where: { ...baseWhere, language: { not: null } },
+      _count: { language: true },
+      orderBy: { _count: { language: "desc" } },
+      take: 40,
+    }),
+  ])
 
-  const platforms = { windows, macos, linux }
+  const platforms = { windows, macos, linux, android, ios }
 
   return {
     repository_count,
@@ -218,6 +236,8 @@ export async function getCatalogFilters(): Promise<ReleasesFiltersResponse> {
       { id: "windows", label: "Windows", count: windows },
       { id: "macos", label: "macOS", count: macos },
       { id: "linux", label: "Linux", count: linux },
+      { id: "android", label: "Android", count: android },
+      { id: "ios", label: "iOS", count: ios },
     ],
     languages: languageGroups
       .filter((g) => g.language)

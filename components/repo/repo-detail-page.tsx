@@ -312,7 +312,7 @@ export function RepoDetailPage({
                 Downloads
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Latest installers for Windows, macOS, and Linux.
+                Latest installers for Windows, macOS, Linux, Android, and iOS.
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -323,7 +323,7 @@ export function RepoDetailPage({
           {assets.length === 0 ? (
             <Card className="rounded-2xl">
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No desktop installers found on the latest release.
+                No installers found on the latest release.
               </CardContent>
             </Card>
           ) : (

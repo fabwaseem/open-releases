@@ -3,7 +3,9 @@
 import * as React from "react"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import {
+  AndroidLogoIcon,
   AppleLogoIcon,
+  DeviceMobileIcon,
   LinuxLogoIcon,
   MagnifyingGlassIcon,
   SpinnerGapIcon,
@@ -27,11 +29,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchReleaseFilters, fetchReleases, queryKeys } from "@/lib/api-client"
 import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 18
 
-const PLATFORMS = new Set<Platform>(["windows", "macos", "linux"])
+const PLATFORMS = new Set<Platform>([
+  "windows",
+  "macos",
+  "linux",
+  "android",
+  "ios",
+])
 const SORT_KEYS = new Set<SortKey>([
   "score",
   "stars",
@@ -48,6 +55,8 @@ const PLATFORM_ICONS: Record<
   windows: WindowsLogoIcon,
   macos: AppleLogoIcon,
   linux: LinuxLogoIcon,
+  android: AndroidLogoIcon,
+  ios: DeviceMobileIcon,
 }
 
 function parsePlatform(value: string | null): Platform | "all" {
@@ -198,6 +207,8 @@ export function DirectoryPage() {
     { id: "windows" as const, label: "Windows", count: 0 },
     { id: "macos" as const, label: "macOS", count: 0 },
     { id: "linux" as const, label: "Linux", count: 0 },
+    { id: "android" as const, label: "Android", count: 0 },
+    { id: "ios" as const, label: "iOS", count: 0 },
   ]
   const sortOptions = filters?.sort_options ?? [
     { value: "score" as const, label: "Default" },
@@ -209,6 +220,9 @@ export function DirectoryPage() {
   const sortLabel =
     sortOptions.find((option) => option.value === sort)?.label ?? "Default"
   const languageLabel = language || "All"
+  const activePlatform =
+    platformFilters.find((item) => item.id === platform) ?? platformFilters[0]!
+  const ActivePlatformIcon = PLATFORM_ICONS[activePlatform.id]
   const languages = filters?.languages ?? []
   const showing = firstPage?.total ?? 0
   const items = data?.pages.flatMap((page) => page.items) ?? []
@@ -277,92 +291,86 @@ export function DirectoryPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 md:grid-cols-4">
-              {platformFilters.map((item) => {
-                const Icon = PLATFORM_ICONS[item.id]
-                const active = platform === item.id
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => replaceFilters({ platform: item.id })}
-                    className={cn(
-                      "inline-flex w-full items-center justify-center gap-2 border px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border/70 bg-card/50 text-muted-foreground hover:border-border hover:text-foreground"
-                    )}
-                  >
-                    <Icon
-                      className="size-4 shrink-0"
-                      weight={active ? "fill" : "regular"}
-                    />
-                    <span className="truncate">{item.label}</span>
-                    <span
-                      className={cn(
-                        "px-1.5 text-[0.65rem] tabular-nums",
-                        active
-                          ? "bg-black/15"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {item.count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 lg:flex lg:w-auto lg:shrink-0 lg:items-center">
-              <Select
-                value={sort}
-                onValueChange={(value) => {
-                  if (value) replaceFilters({ sort: value as SortKey })
-                }}
-              >
-                <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize lg:w-48">
-                  <SelectValue placeholder="Default">{sortLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={language || "all"}
-                onValueChange={(value) =>
-                  replaceFilters({
-                    language: !value || value === "all" ? "" : value,
-                  })
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Select
+              value={platform}
+              onValueChange={(value) => {
+                if (value) {
+                  replaceFilters({ platform: value as Platform | "all" })
                 }
+              }}
+            >
+              <SelectTrigger
+                className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4"
+                aria-label="Filter by platform"
               >
-                <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize lg:w-44">
-                  <SelectValue placeholder="All">{languageLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {languages.map((lang) => (
-                    <SelectItem key={lang.name} value={lang.name}>
-                      {lang.name} ({lang.count})
+                <SelectValue placeholder="Platform">
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <ActivePlatformIcon className="size-4 shrink-0" weight="fill" />
+                    <span className="truncate">{activePlatform.label}</span>
+                    <span className="bg-muted px-1.5 text-[0.65rem] text-muted-foreground tabular-nums">
+                      {activePlatform.count}
+                    </span>
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="start" className="min-w-(--anchor-width)">
+                {platformFilters.map((item) => {
+                  const Icon = PLATFORM_ICONS[item.id]
+                  return (
+                    <SelectItem key={item.id} value={item.id}>
+                      <span className="inline-flex w-full items-center gap-2">
+                        <Icon className="size-4 shrink-0" />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        <span className="text-[0.65rem] text-muted-foreground tabular-nums">
+                          {item.count}
+                        </span>
+                      </span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                  )
+                })}
+              </SelectContent>
+            </Select>
 
-          <p className="text-[0.65rem] font-medium tracking-widest text-muted-foreground uppercase sm:text-xs">
-            Showing {loadedCount}
-            {showing !== loadedCount ? ` / ${showing}` : ""} of {totalLoaded}
-            {isFetching && !isLoading && !isFetchingNextPage
-              ? " · updating…"
-              : ""}
-          </p>
+            <Select
+              value={sort}
+              onValueChange={(value) => {
+                if (value) replaceFilters({ sort: value as SortKey })
+              }}
+            >
+              <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize">
+                <SelectValue placeholder="Default">{sortLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={language || "all"}
+              onValueChange={(value) =>
+                replaceFilters({
+                  language: !value || value === "all" ? "" : value,
+                })
+              }
+            >
+              <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize">
+                <SelectValue placeholder="All">{languageLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.name} value={lang.name}>
+                    {lang.name} ({lang.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </section>
 
         {isError ? (
