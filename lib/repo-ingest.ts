@@ -223,8 +223,12 @@ function buildScoreFields(
   }
 }
 
-/** Fetch and persist a repo into the public catalog (admin approve). */
-export async function ingestGithubRepo(fullName: string) {
+/** Fetch and persist a repo into the public catalog (admin approve / bulk import). */
+export async function ingestGithubRepo(
+  fullName: string,
+  opts?: { scrapeReason?: string }
+) {
+  const scrapeReason = opts?.scrapeReason ?? "user_submission"
   const [owner, name] = fullName.split("/")
   if (!owner || !name) {
     throw new Error("Invalid repository name")
@@ -234,21 +238,33 @@ export async function ingestGithubRepo(fullName: string) {
   if (!repo) throw new Error("Repository not found on GitHub")
   if (repo.private) throw new Error("Repository is private")
 
-  const releases = await fetchReleases(owner, name)
+  // Prefer GitHub's canonical casing so URL case variants don't fork rows.
+  const canonical = repo.full_name
+  const [canonOwner, canonName] = canonical.split("/")
+  if (!canonOwner || !canonName) {
+    throw new Error("Invalid repository name from GitHub")
+  }
+
+  const releases = await fetchReleases(canonOwner, canonName)
   if (!releases.length) throw new Error("Repository has no releases")
 
   const picked = pickUsableRelease(releases)
   if (!picked) throw new Error("No desktop installer assets found")
 
   const summary = summarizePlatforms(picked.assets)
-  const activity = await fetchActivitySignals(owner, name, repo)
-  const existing = await prisma.repository.findUnique({
-    where: { fullName },
-    select: { previousStars: true, previousContributors: true },
+  const activity = await fetchActivitySignals(canonOwner, canonName, repo)
+  const existing = await prisma.repository.findFirst({
+    where: {
+      OR: [
+        { fullName: canonical },
+        { fullName: { equals: fullName, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, fullName: true, previousStars: true, previousContributors: true },
   })
   const scoreFields = buildScoreFields(repo, releases, activity, existing)
 
-  const ownerLogin = repo.owner?.login ?? owner
+  const ownerLogin = repo.owner?.login ?? canonOwner
   const pushedAt = repo.pushed_at ? new Date(repo.pushed_at) : null
   const publishedAt = picked.release.published_at
     ? new Date(picked.release.published_at)
@@ -257,10 +273,18 @@ export async function ingestGithubRepo(fullName: string) {
   const assets = picked.assets
   const release = picked.release
 
+  // If a differently-cased row exists, update that row's fullName to canonical.
+  if (existing && existing.fullName !== canonical) {
+    await prisma.repository.update({
+      where: { id: existing.id },
+      data: { fullName: canonical },
+    })
+  }
+
   const row = await prisma.repository.upsert({
-    where: { fullName },
+    where: { fullName: canonical },
     create: {
-      fullName,
+      fullName: canonical,
       name: repo.name,
       owner: ownerLogin,
       description: repo.description ?? null,
@@ -352,20 +376,33 @@ export async function ingestGithubRepo(fullName: string) {
   })
 
   await prisma.scrapeRecord.upsert({
-    where: { fullName },
+    where: { fullName: canonical },
     create: {
-      fullName,
+      fullName: canonical,
       status: "saved",
       repositoryId: row.id,
-      reason: "user_submission",
+      reason: scrapeReason,
     },
     update: {
       status: "saved",
       repositoryId: row.id,
-      reason: "user_submission",
+      reason: scrapeReason,
       lastSeenAt: new Date(),
     },
   })
+
+  // Clean up a scrape ledger row left under the non-canonical casing.
+  if (fullName.toLowerCase() !== canonical.toLowerCase() || fullName !== canonical) {
+    const stale = await prisma.scrapeRecord.findFirst({
+      where: {
+        fullName: { equals: fullName, mode: "insensitive" },
+        NOT: { fullName: canonical },
+      },
+    })
+    if (stale) {
+      await prisma.scrapeRecord.delete({ where: { id: stale.id } }).catch(() => {})
+    }
+  }
 
   return row
 }
