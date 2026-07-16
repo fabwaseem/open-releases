@@ -17,6 +17,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "scrape": "tsx scripts/scrape/index.ts",
+    "scrape:update": "tsx scripts/scrape/index.ts --update",
     "icons": "tsx scripts/generate-icons.ts",
     "db:migrate-scrape": "tsx scripts/migrate-scrape-to-prod.ts",
     "import:links": "tsx scripts/import-links.ts",

@@ -63,6 +63,7 @@ export default function RootLayout({
         dmSans.variable,
         spaceGroteskHeading.variable
       )}
+      data-scroll-behavior="smooth"
     >
       <body>
         <script

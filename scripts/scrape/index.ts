@@ -7,8 +7,10 @@
  *   - html → github.com/search pages (unauthenticated, easy to 429)
  * Enrichment: Core REST /repos + /releases (5k/hour with token)
  *
- * Note: GraphQL `search` shares the same 30/min Search rate limit as REST
- * search, so we use REST for discovery (simpler pagination).
+ * Update mode (--update): skip discovery; refresh existing catalog rows
+ * with latest GitHub details + recalculated activity scores. Oldest
+ * scored/scraped repos first. Repos that lost installers / look non-app
+ * are removed from the catalog.
  *
  * Usage:
  *   pnpm scrape
@@ -16,6 +18,9 @@
  *   pnpm scrape -- --query "stars:>100 language:C# archived:false"
  *   pnpm scrape -- --discovery html   # force browser pages
  *   pnpm scrape -- --discovery api    # force Search API (needs token)
+ *   pnpm scrape:update
+ *   pnpm scrape -- --update --max-repos 200
+ *   pnpm scrape -- --update --stale-days 7
  */
 import "dotenv/config"
 
@@ -38,6 +43,7 @@ import {
   alreadyScraped,
   markScrape,
   prisma,
+  removeCatalogRepo,
   saveRepoFromRest,
 } from "./store.js"
 
@@ -49,6 +55,21 @@ type Args = {
   maxRepos: number
   pushedAfter: string
   discovery: DiscoveryMode
+  /** Refresh existing catalog repos instead of discovering new ones. */
+  update: boolean
+  /** Only refresh repos scored/scraped at least this many days ago (0 = all). */
+  staleDays: number
+}
+
+type Stats = {
+  discovered: number
+  saved: number
+  skipped_known: number
+  skipped_no_releases: number
+  skipped_no_assets: number
+  skipped_non_app: number
+  removed: number
+  errors: number
 }
 
 function hasFlag(argv: string[], flag: string) {
@@ -89,27 +110,39 @@ function parseArgs(argv: string[]): Args {
     maxRepos: Number(get("--max-repos", "0")),
     pushedAfter: get("--pushed-after", yearsAgo(5)),
     discovery,
+    update: hasFlag(argv, "--update") || hasFlag(argv, "--refresh"),
+    staleDays: Math.max(0, Number(get("--stale-days", "0"))),
   }
 }
 
 async function processFullName(
   fullName: string,
-  stats: Record<string, number>
+  stats: Stats,
+  opts: { forceUpdate?: boolean } = {}
 ) {
-  const prior = await alreadyScraped(fullName)
-  if (prior && prior.status !== "error" && prior.status !== "discovered") {
-    stats.skipped_known += 1
-    return
-  }
+  const forceUpdate = Boolean(opts.forceUpdate)
 
-  stats.discovered += 1
-  await markScrape(fullName, "discovered")
+  if (!forceUpdate) {
+    const prior = await alreadyScraped(fullName)
+    if (prior && prior.status !== "error" && prior.status !== "discovered") {
+      stats.skipped_known += 1
+      return
+    }
+    stats.discovered += 1
+    await markScrape(fullName, "discovered")
+  }
 
   try {
     const data = await fetchRepoAndReleases(fullName)
     if (!data) {
-      await markScrape(fullName, "error", "repo not found")
-      stats.errors += 1
+      if (forceUpdate) {
+        await removeCatalogRepo(fullName, "error", "repo not found on update")
+        stats.removed += 1
+        console.log(`removed ${fullName}: not found on GitHub`)
+      } else {
+        await markScrape(fullName, "error", "repo not found")
+        stats.errors += 1
+      }
       return
     }
 
@@ -121,9 +154,31 @@ async function processFullName(
     if (result.saved) {
       stats.saved += 1
       console.log(
-        `saved ${fullName} score=${result.score.toFixed(1)} (${stats.saved})`
+        `${forceUpdate ? "updated" : "saved"} ${fullName} score=${result.score.toFixed(1)} (${stats.saved})`
       )
-    } else if (result.reason === "no_releases") {
+      return
+    }
+
+    if (forceUpdate) {
+      const status =
+        result.reason === "no_releases"
+          ? "skipped_no_releases"
+          : result.reason === "non_app"
+            ? "skipped_non_app"
+            : "skipped_no_assets"
+      const reason =
+        result.reason === "no_releases"
+          ? "no releases on update"
+          : result.reason === "non_app"
+            ? "non-app on update"
+            : "no-usable-installers on update"
+      await removeCatalogRepo(fullName, status, reason)
+      stats.removed += 1
+      console.log(`removed ${fullName}: ${result.reason}`)
+      return
+    }
+
+    if (result.reason === "no_releases") {
       stats.skipped_no_releases += 1
       console.log(`skip ${fullName}: no releases`)
     } else if (result.reason === "non_app") {
@@ -159,7 +214,7 @@ async function searchPage(
 async function streamShard(
   shard: Shard,
   args: Args,
-  stats: Record<string, number>,
+  stats: Stats,
   discovery: StreamingDiscovery
 ): Promise<boolean> {
   const query = shardQuery(
@@ -218,33 +273,58 @@ async function streamShard(
   return true
 }
 
-async function main() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL missing")
-  }
-  if (!hasGithubToken()) {
-    console.warn(
-      "WARNING: no GITHUB_TOKEN — discovery falls back to HTML; Core REST limits will be low"
-    )
-  }
+async function runUpdateMode(args: Args, stats: Stats) {
+  const cutoff =
+    args.staleDays > 0
+      ? new Date(Date.now() - args.staleDays * 86_400_000)
+      : null
 
-  const args = parseArgs(process.argv.slice(2))
-  if (args.discovery === "api" && !hasGithubToken()) {
-    throw new Error(
-      "Discovery mode is api but GITHUB_TOKEN / GH_TOKEN is not set. Add a token or pass --discovery html."
-    )
-  }
+  const where = cutoff
+    ? {
+        OR: [
+          { scoredAt: { lt: cutoff } },
+          { scoredAt: null, scrapedAt: { lt: cutoff } },
+        ],
+      }
+    : {}
 
-  const stats = {
-    discovered: 0,
-    saved: 0,
-    skipped_known: 0,
-    skipped_no_releases: 0,
-    skipped_no_assets: 0,
-    skipped_non_app: 0,
-    errors: 0,
-  }
+  const queue = await prisma.repository.findMany({
+    where,
+    orderBy: [{ scoredAt: "asc" }, { scrapedAt: "asc" }, { id: "asc" }],
+    ...(args.maxRepos > 0 ? { take: args.maxRepos } : {}),
+    select: { fullName: true },
+  })
 
+  console.log(
+    `update mode — catalog refresh (oldest score first)${args.staleDays > 0 ? `, stale≥${args.staleDays}d` : ""}`
+  )
+  console.log(`  queue: ${queue.length} repo(s)`)
+
+  for (let i = 0; i < queue.length; i++) {
+    const fullName = queue[i]!.fullName
+    console.log(`[${i + 1}/${queue.length}] refresh ${fullName}`)
+
+    try {
+      await processFullName(fullName, stats, { forceUpdate: true })
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        const wait = err.resetAt
+          ? Math.min(
+              Math.max(err.resetAt * 1000 - Date.now() + 1000, 5_000),
+              120_000
+            )
+          : 60_000
+        console.warn(`API rate limit — waiting ${Math.round(wait / 1000)}s`)
+        await new Promise((r) => setTimeout(r, wait))
+        await processFullName(fullName, stats, { forceUpdate: true })
+        continue
+      }
+      throw err
+    }
+  }
+}
+
+async function runDiscoveryMode(args: Args, stats: Stats) {
   console.log(
     `scrape start discovery=${args.discovery} query=${args.query ? JSON.stringify(args.query) : "(none)"} minStars=${args.minStars} pushedAfter=${args.pushedAfter}`
   )
@@ -296,6 +376,41 @@ async function main() {
       discovery.queue.unshift(shard)
       await new Promise((r) => setTimeout(r, 15_000))
     }
+  }
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL missing")
+  }
+  if (!hasGithubToken()) {
+    console.warn(
+      "WARNING: no GITHUB_TOKEN — discovery falls back to HTML; Core REST limits will be low"
+    )
+  }
+
+  const args = parseArgs(process.argv.slice(2))
+  if (!args.update && args.discovery === "api" && !hasGithubToken()) {
+    throw new Error(
+      "Discovery mode is api but GITHUB_TOKEN / GH_TOKEN is not set. Add a token or pass --discovery html."
+    )
+  }
+
+  const stats: Stats = {
+    discovered: 0,
+    saved: 0,
+    skipped_known: 0,
+    skipped_no_releases: 0,
+    skipped_no_assets: 0,
+    skipped_non_app: 0,
+    removed: 0,
+    errors: 0,
+  }
+
+  if (args.update) {
+    await runUpdateMode(args, stats)
+  } else {
+    await runDiscoveryMode(args, stats)
   }
 
   console.log("done", stats)

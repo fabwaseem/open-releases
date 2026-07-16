@@ -303,6 +303,23 @@ export async function hideRepository(fullName: string, reason: string) {
   return repo
 }
 
+/** Remove a catalog row (releases cascade) and mark the scrape ledger. */
+export async function removeCatalogRepo(
+  fullName: string,
+  status: string,
+  reason: string
+) {
+  const existing = await prisma.repository.findUnique({
+    where: { fullName },
+    select: { id: true },
+  })
+  if (existing) {
+    await prisma.repository.delete({ where: { id: existing.id } })
+  }
+  await markScrape(fullName, status, reason)
+  return { deleted: Boolean(existing) }
+}
+
 type RestSaveInput = {
   full_name: string
   name: string
