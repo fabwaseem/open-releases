@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db"
 import { getRepoFromCatalog, toCatalogRepo } from "@/lib/catalog"
-import { filterDesktopAssets, summarizePlatforms } from "@/lib/platforms"
-import type { Platform, ReleaseAsset, RepoDetailResponse } from "@/lib/types"
+import {
+  summarizePlatforms,
+  usableInstallers,
+} from "@/lib/platforms"
+import type { ReleaseAsset, RepoDetailResponse } from "@/lib/types"
 
 const GITHUB_API = "https://api.github.com"
 
@@ -18,40 +21,78 @@ function githubHeaders(): HeadersInit {
   return headers
 }
 
-function detectPlatform(name: string): Platform | "other" {
-  const lower = name.toLowerCase()
-  if (/\.(exe|msi|msix|msixbundle|appx)$/.test(lower)) return "windows"
-  if (/\.(dmg|pkg)$/.test(lower) || /darwin|macos|osx/.test(lower)) return "macos"
-  if (
-    /\.(appimage|deb|rpm|snap|flatpak)$/.test(lower) ||
-    /linux|ubuntu|debian/.test(lower)
-  ) {
-    return "linux"
-  }
-  return "other"
-}
-
 function mapAssets(assets: unknown[]): ReleaseAsset[] {
-  const mapped: ReleaseAsset[] = []
-  for (const raw of assets) {
-    const asset = raw as {
+  return usableInstallers(
+    assets as Array<{
       name?: string
       size?: number
       download_count?: number
       browser_download_url?: string
-    }
-    const name = asset.name ?? ""
-    const platform = detectPlatform(name)
-    if (platform === "other" || !asset.browser_download_url) continue
-    mapped.push({
-      name,
-      platform,
-      size: asset.size ?? null,
-      download_count: asset.download_count ?? null,
-      url: asset.browser_download_url,
+    }>
+  )
+}
+
+const README_MAX_CHARS = 350_000
+
+async function fetchReadmeMarkdown(
+  owner: string,
+  name: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${owner}/${name}/readme`, {
+      headers: {
+        ...githubHeaders(),
+        Accept: "application/vnd.github.raw",
+      },
+      next: { revalidate: 3600 },
     })
+    if (!res.ok) return null
+    const text = await res.text()
+    if (!text.trim()) return null
+    if (text.length > README_MAX_CHARS) {
+      return `${text.slice(0, README_MAX_CHARS)}\n\n…`
+    }
+    return text
+  } catch {
+    return null
   }
-  return mapped
+}
+
+/** Make relative README media/links resolve against the repo on GitHub. */
+export function rewriteRepoMarkdown(
+  markdown: string,
+  {
+    owner,
+    repo,
+    branch,
+  }: {
+    owner: string
+    repo: string
+    branch: string
+  }
+): string {
+  const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`
+  const resolve = (src: string) => {
+    const trimmed = src.trim()
+    if (/^(https?:|data:|mailto:|#)/i.test(trimmed)) return trimmed
+    return `${rawBase}${trimmed.replace(/^\.?\//, "")}`
+  }
+
+  return markdown
+    .replace(
+      /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+      (full, alt: string, src: string) => {
+        if (/^(https?:|data:)/i.test(src.trim())) return full
+        return `![${alt}](${resolve(src)})`
+      }
+    )
+    .replace(
+      /<img\b([^>]*?)\bsrc=(['"])([^'"]+)\2/gi,
+      (full, attrs: string, quote: string, src: string) => {
+        if (/^(https?:|data:)/i.test(src.trim())) return full
+        return `<img${attrs}src=${quote}${resolve(src)}${quote}`
+      }
+    )
 }
 
 async function syncLatestReleaseIfChanged(
@@ -85,7 +126,7 @@ async function syncLatestReleaseIfChanged(
   })
   if (!existing) return
 
-  const desktop = filterDesktopAssets(
+  const desktop = usableInstallers(
     (release.assets ?? []) as Array<{
       name?: string
       size?: number
@@ -99,7 +140,9 @@ async function syncLatestReleaseIfChanged(
     : null
 
   const tagChanged = existing.latestRelease?.tag !== tag
-  const shouldUpdateRelease = tagChanged && desktop.length > 0
+  // Always refresh when the tag moves — including empty installers so the
+  // catalog doesn't keep a stale older release as "latest".
+  const shouldUpdateRelease = tagChanged
 
   await prisma.repository.update({
     where: { id: existing.id },
@@ -136,8 +179,8 @@ async function syncLatestReleaseIfChanged(
                   hasWindows: summary.hasWindows,
                   hasMacos: summary.hasMacos,
                   hasLinux: summary.hasLinux,
-            hasAndroid: summary.hasAndroid,
-            hasIos: summary.hasIos,
+                  hasAndroid: summary.hasAndroid,
+                  hasIos: summary.hasIos,
                   assets: desktop,
                 },
                 update: {
@@ -151,8 +194,8 @@ async function syncLatestReleaseIfChanged(
                   hasWindows: summary.hasWindows,
                   hasMacos: summary.hasMacos,
                   hasLinux: summary.hasLinux,
-            hasAndroid: summary.hasAndroid,
-            hasIos: summary.hasIos,
+                  hasAndroid: summary.hasAndroid,
+                  hasIos: summary.hasIos,
                   assets: desktop,
                 },
               },
@@ -173,7 +216,7 @@ export async function fetchRepoDetail(
   const fullName = catalog.full_name
 
   try {
-    const [repoRes, releaseRes] = await Promise.all([
+    const [repoRes, releaseRes, readmeMarkdown] = await Promise.all([
       fetch(`${GITHUB_API}/repos/${owner}/${name}`, {
         headers: githubHeaders(),
         next: { revalidate: 300 },
@@ -182,6 +225,7 @@ export async function fetchRepoDetail(
         headers: githubHeaders(),
         next: { revalidate: 300 },
       }),
+      fetchReadmeMarkdown(owner, name),
     ])
 
     if (!repoRes.ok) {
@@ -262,6 +306,15 @@ export async function fetchRepoDetail(
     const catalogFresh =
       (refreshed && toCatalogRepo(refreshed)) || catalog
 
+    const branch = repo.default_branch || "main"
+    const readme = readmeMarkdown
+      ? rewriteRepoMarkdown(readmeMarkdown, {
+          owner,
+          repo: name,
+          branch,
+        })
+      : null
+
     return {
       catalog: catalogFresh,
       live: {
@@ -283,6 +336,7 @@ export async function fetchRepoDetail(
         default_branch: repo.default_branch ?? null,
         html_url: repo.html_url ?? catalogFresh.url,
         latest_release: latest,
+        readme,
       },
     }
   } catch {

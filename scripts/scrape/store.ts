@@ -7,8 +7,10 @@ import {
   starVelocityProxy,
 } from "../../lib/score.js"
 import {
-  filterDesktopAssets,
   summarizePlatforms,
+  usableInstallers,
+  SKIPPED_NO_ASSETS_REASON,
+  SKIPPED_NO_ASSETS_STATUS,
   type DesktopAsset,
 } from "./platforms.js"
 import type { ActivitySignals } from "./github.js"
@@ -77,7 +79,7 @@ function pickLatest(releases: GqlRelease[]) {
   const usable = releases
     .filter((r) => !r.isDraft)
     .map((r) => {
-      const assets = filterDesktopAssets(r.releaseAssets?.nodes ?? [])
+      const assets = usableInstallers(r.releaseAssets?.nodes ?? [])
       return { release: r, assets }
     })
     .filter((x) => x.assets.length > 0)
@@ -135,7 +137,7 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
 
   const picked = pickLatest(releases)
   if (!picked) {
-    await markScrape(fullName, "skipped_no_assets", "no installable release assets")
+    await markScrape(fullName, SKIPPED_NO_ASSETS_STATUS, SKIPPED_NO_ASSETS_REASON)
     return { saved: false as const, reason: "no_assets" }
   }
 
@@ -386,7 +388,7 @@ export async function saveRepoFromRest(
   const usable = releases
     .filter((r) => !r.draft)
     .map((r) => {
-      const assets = filterDesktopAssets(r.assets ?? [])
+      const assets = usableInstallers(r.assets ?? [])
       return { release: r, assets }
     })
     .filter((x) => x.assets.length > 0)
@@ -397,7 +399,7 @@ export async function saveRepoFromRest(
     )
 
   if (!usable.length) {
-    await markScrape(fullName, "skipped_no_assets", "no installable release assets")
+    await markScrape(fullName, SKIPPED_NO_ASSETS_STATUS, SKIPPED_NO_ASSETS_REASON)
     return { saved: false as const, reason: "no_assets" }
   }
 

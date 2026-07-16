@@ -1,6 +1,12 @@
 export type Platform = "windows" | "macos" | "linux" | "android" | "ios"
 
-export type SortKey = "score" | "stars" | "updated" | "name" | "released"
+export type SortKey =
+  | "score"
+  | "stars"
+  | "updated"
+  | "name"
+  | "released"
+  | "created"
 
 export type ReleaseAsset = {
   name: string
@@ -110,5 +116,7 @@ export type RepoDetailResponse = {
       prerelease: boolean
       assets: ReleaseAsset[]
     } | null
+    /** README markdown from GitHub, when available. */
+    readme: string | null
   } | null
 }

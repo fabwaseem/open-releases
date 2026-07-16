@@ -68,6 +68,16 @@ function platformLabel(repo: AdminRepo) {
   return parts.length ? parts.join(" · ") : "—"
 }
 
+function formatAdded(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+    }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
 export function RepositoriesPanel() {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -80,7 +90,7 @@ export function RepositoriesPanel() {
   const [language, setLanguage] = React.useState("all")
   const [platform, setPlatform] = React.useState("all")
   const [minStars, setMinStars] = React.useState("0")
-  const [sortBy, setSortBy] = React.useState("activityScore")
+  const [sortBy, setSortBy] = React.useState("createdAt")
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc")
   const [page, setPage] = React.useState(1)
   const [pageSize, setPageSize] = React.useState(20)
@@ -367,6 +377,14 @@ export function RepositoriesPanel() {
                 onSort={handleSort}
                 className="hidden w-28 md:table-cell"
               />
+              <SortableTableHead
+                label="Added"
+                column="createdAt"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="hidden w-32 lg:table-cell"
+              />
               <TableHead className="w-24 sm:w-28">Status</TableHead>
               <TableHead className="w-12 text-right sm:w-16">Actions</TableHead>
             </TableRow>
@@ -375,7 +393,7 @@ export function RepositoriesPanel() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
@@ -383,7 +401,7 @@ export function RepositoriesPanel() {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="py-10 text-center text-muted-foreground"
                 >
                   No repositories match these filters.
@@ -409,6 +427,9 @@ export function RepositoriesPanel() {
                         {repo.stars.toLocaleString()} stars · score{" "}
                         {repo.activityScore.toFixed(1)}
                       </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground lg:hidden">
+                        Added {formatAdded(repo.createdAt)}
+                      </p>
                     </div>
                   </TableCell>
                   <TableCell className="hidden tabular-nums sm:table-cell">
@@ -425,6 +446,9 @@ export function RepositoriesPanel() {
                   </TableCell>
                   <TableCell className="hidden tabular-nums md:table-cell">
                     {repo._count.favorites}
+                  </TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground tabular-nums lg:table-cell">
+                    {formatAdded(repo.createdAt)}
                   </TableCell>
                   <TableCell>
                     <span

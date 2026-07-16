@@ -48,6 +48,7 @@ export type AdminRepo = {
   featured: boolean
   featuredAt: string | null
   scrapedAt: string
+  createdAt: string
   hasWindows: boolean
   hasMacos: boolean
   hasLinux: boolean

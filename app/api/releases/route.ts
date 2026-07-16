@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { queryCatalog } from "@/lib/catalog"
+import { getSession, isAdminRole } from "@/lib/session"
 import type { Platform, SortKey } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
@@ -13,19 +14,27 @@ const PLATFORMS = new Set([
   "android",
   "ios",
 ])
-const SORTS = new Set(["score", "stars", "updated", "name", "released"])
+const PUBLIC_SORTS = new Set(["score", "stars", "updated", "name", "released"])
+const ADMIN_SORTS = new Set([...PUBLIC_SORTS, "created"])
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const platformParam = searchParams.get("platform") ?? "all"
   const sortParam = searchParams.get("sort") ?? "score"
 
+  const session = await getSession()
+  const isAdmin = isAdminRole(session?.user?.role)
+  const allowedSorts = isAdmin ? ADMIN_SORTS : PUBLIC_SORTS
+  const sort = allowedSorts.has(sortParam)
+    ? (sortParam as SortKey)
+    : "score"
+
   const data = await queryCatalog({
     q: searchParams.get("q") ?? undefined,
     platform: PLATFORMS.has(platformParam)
       ? (platformParam as Platform | "all")
       : "all",
-    sort: SORTS.has(sortParam) ? (sortParam as SortKey) : "score",
+    sort,
     language: searchParams.get("language") ?? undefined,
     page: Number(searchParams.get("page") ?? "1") || 1,
     pageSize: Number(searchParams.get("pageSize") ?? "24") || 24,
@@ -33,7 +42,9 @@ export async function GET(request: NextRequest) {
 
   return Response.json(data, {
     headers: {
-      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+      "Cache-Control": isAdmin
+        ? "private, no-store"
+        : "public, s-maxage=30, stale-while-revalidate=60",
     },
   })
 }

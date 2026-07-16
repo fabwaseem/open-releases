@@ -6,7 +6,7 @@ import {
   type GhRelease,
   type GhRepo,
 } from "@/lib/github-rest"
-import { filterDesktopAssets, summarizePlatforms } from "@/lib/platforms"
+import { summarizePlatforms, usableInstallers } from "@/lib/platforms"
 import {
   evaluateNonApp,
   nonAppErrorMessage,
@@ -48,7 +48,7 @@ function pickUsableRelease(releases: GhRelease[]) {
     .filter((r) => !r.draft)
     .map((r) => ({
       release: r,
-      assets: filterDesktopAssets(r.assets ?? []),
+      assets: usableInstallers(r.assets ?? []),
     }))
     .filter((x) => x.assets.length > 0)
     .sort(

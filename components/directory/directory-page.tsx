@@ -11,6 +11,7 @@ import {
   SpinnerGapIcon,
   SquaresFourIcon,
   WindowsLogoIcon,
+  XIcon,
 } from "@phosphor-icons/react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchReleaseFilters, fetchReleases, queryKeys } from "@/lib/api-client"
+import { useSession } from "@/lib/auth-client"
 import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -40,13 +42,14 @@ const PLATFORMS = new Set<Platform>([
   "android",
   "ios",
 ])
-const SORT_KEYS = new Set<SortKey>([
+const PUBLIC_SORT_KEYS = new Set<SortKey>([
   "score",
   "stars",
   "updated",
   "name",
   "released",
 ])
+const ADMIN_ONLY_SORT: SortKey = "created"
 
 const PLATFORM_ICONS: Record<
   Platform | "all",
@@ -65,8 +68,17 @@ function parsePlatform(value: string | null): Platform | "all" {
   return "all"
 }
 
-function parseSort(value: string | null): SortKey {
-  if (value && SORT_KEYS.has(value as SortKey)) return value as SortKey
+function parseSort(
+  value: string | null,
+  allowAdminSort: boolean,
+  sessionPending: boolean
+): SortKey {
+  if (value === ADMIN_ONLY_SORT) {
+    // Keep URL while session resolves so admins don't flash back to Default.
+    if (allowAdminSort || sessionPending) return ADMIN_ONLY_SORT
+    return "score"
+  }
+  if (value && PUBLIC_SORT_KEYS.has(value as SortKey)) return value as SortKey
   return "score"
 }
 
@@ -110,10 +122,12 @@ export function DirectoryPage() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { data: session, isPending: sessionPending } = useSession()
+  const isAdmin = session?.user?.role === "admin"
 
   const urlQ = searchParams.get("q") ?? ""
   const platform = parsePlatform(searchParams.get("platform"))
-  const sort = parseSort(searchParams.get("sort"))
+  const sort = parseSort(searchParams.get("sort"), isAdmin, sessionPending)
   const language = searchParams.get("language")?.trim() ?? ""
 
   const [search, setSearch] = React.useState(urlQ)
@@ -148,9 +162,12 @@ export function DirectoryPage() {
   )
 
   React.useEffect(() => {
+    // Wait until debounce matches the input so a clear/edit isn't overwritten
+    // by a stale debounced value writing the old query back into the URL.
+    if (debouncedSearch !== search) return
     if (debouncedSearch.trim() === urlQ.trim()) return
     replaceFilters({ q: debouncedSearch })
-  }, [debouncedSearch, replaceFilters, urlQ])
+  }, [debouncedSearch, replaceFilters, search, urlQ])
 
   const filterParams = {
     q: debouncedSearch,
@@ -212,13 +229,30 @@ export function DirectoryPage() {
     { id: "android" as const, label: "Android", count: 0 },
     { id: "ios" as const, label: "iOS", count: 0 },
   ]
-  const sortOptions = filters?.sort_options ?? [
-    { value: "score" as const, label: "Default" },
-    { value: "stars" as const, label: "Most stars" },
-    { value: "released" as const, label: "Newest release" },
-    { value: "updated" as const, label: "Recently updated" },
-    { value: "name" as const, label: "Name A–Z" },
-  ]
+  const sortOptions = React.useMemo(() => {
+    const base = filters?.sort_options ?? [
+      { value: "score" as const, label: "Default" },
+      { value: "stars" as const, label: "Most stars" },
+      { value: "released" as const, label: "Newest release" },
+      { value: "updated" as const, label: "Recently updated" },
+      { value: "name" as const, label: "Name A–Z" },
+    ]
+    if (!isAdmin) return base.filter((option) => option.value !== "created")
+    const hasCreated = base.some((option) => option.value === "created")
+    if (hasCreated) return base
+    return [
+      base[0]!,
+      { value: "created" as const, label: "Newest added" },
+      ...base.slice(1),
+    ]
+  }, [filters?.sort_options, isAdmin])
+
+  React.useEffect(() => {
+    if (sessionPending) return
+    if (!isAdmin && searchParams.get("sort") === "created") {
+      replaceFilters({ sort: "score" })
+    }
+  }, [isAdmin, replaceFilters, searchParams, sessionPending])
   const sortLabel =
     sortOptions.find((option) => option.value === sort)?.label ?? "Default"
   const languageLabel = language || "All"
@@ -296,6 +330,19 @@ export function DirectoryPage() {
               className="h-10 border-0 border-transparent px-0 text-base shadow-none focus-visible:border-transparent focus-visible:ring-0 sm:h-11 md:text-base"
               aria-label="Search releases"
             />
+            {search ? (
+              <button
+                type="button"
+                className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Clear search"
+                onClick={() => {
+                  setSearch("")
+                  replaceFilters({ q: "" })
+                }}
+              >
+                <XIcon className="size-4" weight="bold" />
+              </button>
+            ) : null}
           </div>
 
           <div className="grid  gap-2 grid-cols-3">

@@ -1,12 +1,10 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
   ArrowLeftIcon,
-  ArrowSquareOutIcon,
   DownloadSimpleIcon,
   GithubLogoIcon,
   GlobeIcon,
@@ -21,6 +19,12 @@ import { SiteFooter } from "@/components/layout/site-footer"
 import { SiteHeader } from "@/components/layout/site-header"
 import { NotFoundView } from "@/components/not-found/not-found-view"
 import { ReleaseNotes } from "@/components/markdown/release-notes"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -36,6 +40,7 @@ import {
   formatStars,
   platformLabel,
 } from "@/lib/format"
+import { curateDownloadAssets } from "@/lib/platforms"
 import type { Platform } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -81,21 +86,28 @@ export function RepoDetailPage({
   const stars = live?.stars ?? catalog.stars
   const topics = live?.topics?.length ? live.topics : catalog.topics
   const release = live?.latest_release
-  const assets =
+  const rawAssets =
     release?.assets?.length && release.assets.length > 0
       ? release.assets
       : catalog.latest_release.assets
-  const platforms = (catalog.platforms ?? []) as Platform[]
+  const assets = curateDownloadAssets(
+    rawAssets as Array<{
+      name: string
+      platform: Platform
+      size: number | null
+      download_count: number | null
+      url: string
+    }>
+  )
+  const platforms = ((catalog.platforms ?? []) as Platform[]).filter(
+    (platform) => assets.some((asset) => asset.platform === platform)
+  )
   const tag = release?.tag ?? catalog.latest_release.tag
-  const published =
-    release?.published_at ?? catalog.latest_release.published_at
-  const releaseUrl =
-    release?.html_url ?? catalog.latest_release.url ?? catalog.url
+  const published = release?.published_at ?? catalog.latest_release.published_at
   const homepage = live?.homepage || catalog.homepage
   const body = release?.body
 
-  const bestDownload =
-    device != null ? pickBestDownload(assets, device) : null
+  const bestDownload = device != null ? pickBestDownload(assets, device) : null
   const hasDetectedPlatform =
     device?.platform != null && platforms.includes(device.platform)
 
@@ -124,7 +136,13 @@ export function RepoDetailPage({
             variant="ghost"
             size="sm"
             className="rounded-xl px-2"
-            render={<Link href="/" />}
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back()
+              } else {
+                router.push("/")
+              }
+            }}
           >
             <ArrowLeftIcon data-icon="inline-start" />
             {brandCopy.repo.back}
@@ -182,7 +200,8 @@ export function RepoDetailPage({
                       {tag}
                     </Badge>
                   ) : null}
-                  {(release?.prerelease || catalog.latest_release.prerelease) && (
+                  {(release?.prerelease ||
+                    catalog.latest_release.prerelease) && (
                     <Badge variant="secondary" className="rounded-md uppercase">
                       Pre-release
                     </Badge>
@@ -280,17 +299,16 @@ export function RepoDetailPage({
                   <GithubLogoIcon data-icon="inline-start" />
                   GitHub
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1 rounded-xl"
-                  render={
-                    <a href={releaseUrl} target="_blank" rel="noreferrer" />
-                  }
-                >
-                  Notes
-                  <ArrowSquareOutIcon data-icon="inline-end" />
-                </Button>
+                {live?.readme ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 rounded-xl"
+                    render={<a href="#readme" />}
+                  >
+                    README
+                  </Button>
+                ) : null}
                 {homepage ? (
                   <Button
                     variant="ghost"
@@ -335,9 +353,6 @@ export function RepoDetailPage({
                 Latest installers for Windows, macOS, Linux, Android, and iOS.
               </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {live ? "Live from GitHub" : "From catalog snapshot"}
-            </p>
           </div>
 
           {assets.length === 0 ? (
@@ -350,58 +365,92 @@ export function RepoDetailPage({
                 const group = assetsByPlatform[platform] ?? []
                 if (!group.length) return null
                 const isDetected = device?.platform === platform
-                return (
-                  <div
-                    key={platform}
-                    className={cn(
-                      "w-full border border-border/50 bg-card/40 p-4",
-                      isDetected && "border-primary/40 ring-1 ring-primary/30"
-                    )}
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold">
-                        {platformLabel(platform)}
-                      </h3>
-                      {isDetected ? (
-                        <Badge className="rounded-none bg-primary/15 px-2 py-0.5 text-[0.6rem] text-primary">
-                          Your device
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <div className="space-y-2">
-                      {group.map((asset) => {
-                        const isBest = bestDownload?.url === asset.url
-                        return (
-                          <a
-                            key={asset.url}
-                            href={asset.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={cn(
-                              "flex items-center justify-between gap-3 border px-3 py-3 transition-colors",
-                              isBest
-                                ? "border-primary/50 bg-primary/10 hover:bg-primary/15"
-                                : "border-border/50 bg-background/40 hover:border-primary/40 hover:bg-muted/40"
-                            )}
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {asset.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground tabular-nums">
-                                {formatBytes(asset.size)}
-                                {asset.download_count != null
-                                  ? ` · ${formatStars(asset.download_count)} downloads`
-                                  : ""}
-                                {isBest ? " · recommended" : ""}
-                              </p>
-                            </div>
-                            <DownloadSimpleIcon className="size-5 shrink-0 text-primary" />
-                          </a>
-                        )
-                      })}
-                    </div>
+                const shellClass = cn(
+                  "w-full border border-border/50 bg-card/40",
+                  isDetected && "border-primary/40 ring-1 ring-primary/30"
+                )
+                const assetLinks = (
+                  <div className="space-y-2">
+                    {group.map((asset) => {
+                      const isBest = bestDownload?.url === asset.url
+                      return (
+                        <a
+                          key={asset.url}
+                          href={asset.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn(
+                            "flex items-center justify-between gap-3 border px-3 py-3 no-underline transition-colors",
+                            isBest
+                              ? "border-primary/50 bg-primary/10 hover:bg-primary/15"
+                              : "border-border/50 bg-background/40 hover:border-primary/40 hover:bg-muted/40"
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {asset.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground tabular-nums no-underline">
+                              {formatBytes(asset.size)}
+                              {asset.download_count != null
+                                ? ` · ${formatStars(asset.download_count)} downloads`
+                                : ""}
+                              {isBest ? " · recommended" : ""}
+                            </p>
+                          </div>
+                          <DownloadSimpleIcon className="size-5 shrink-0 text-primary" />
+                        </a>
+                      )
+                    })}
                   </div>
+                )
+
+                // Single file: keep expanded (no accordion needed)
+                if (group.length === 1) {
+                  return (
+                    <div key={platform} className={cn(shellClass, "p-4")}>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold">
+                          {platformLabel(platform)}
+                        </h3>
+                        {isDetected ? (
+                          <Badge className="rounded-none bg-primary/15 px-2 py-0.5 text-[0.6rem] text-primary">
+                            Your device
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {assetLinks}
+                    </div>
+                  )
+                }
+
+                return (
+                  <Accordion
+                    key={platform}
+                    defaultValue={isDetected ? [platform] : []}
+                    className={shellClass}
+                  >
+                    <AccordionItem value={platform} className="border-0">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                          <span className="text-sm font-semibold">
+                            {platformLabel(platform)}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                            {group.length} files
+                          </span>
+                          {isDetected ? (
+                            <Badge className="rounded-none bg-primary/15 px-2 py-0.5 text-[0.6rem] text-primary">
+                              Your device
+                            </Badge>
+                          ) : null}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4 [&_a]:no-underline">
+                        {assetLinks}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 )
               })}
             </div>
@@ -414,8 +463,34 @@ export function RepoDetailPage({
               What’s new
             </h2>
             <div className="mt-3">
-              <ScrollArea className="w-full max-h-[min(28rem,60vh)] pr-3 *:data-[slot=scroll-area-viewport]:max-h-[min(28rem,60vh)] *:data-[slot=scroll-area-viewport]:h-auto">
+              <ScrollArea className="max-h-[min(28rem,60vh)] w-full pr-3 *:data-[slot=scroll-area-viewport]:h-auto *:data-[slot=scroll-area-viewport]:max-h-[min(28rem,60vh)]">
                 <ReleaseNotes markdown={body} />
+              </ScrollArea>
+            </div>
+          </section>
+        ) : null}
+
+        {live?.readme ? (
+          <section
+            id="readme"
+            className="mt-8 scroll-mt-24 border border-border/50 bg-card/40 p-4 sm:p-5"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-heading text-base font-semibold tracking-tight">
+                README
+              </h2>
+              <a
+                href={`${catalog.url}#readme`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                View on GitHub
+              </a>
+            </div>
+            <div className="mt-3">
+              <ScrollArea className="max-h-[min(40rem,70vh)] w-full pr-3 *:data-[slot=scroll-area-viewport]:h-auto *:data-[slot=scroll-area-viewport]:max-h-[min(40rem,70vh)]">
+                <ReleaseNotes markdown={live.readme} />
               </ScrollArea>
             </div>
           </section>
@@ -426,7 +501,10 @@ export function RepoDetailPage({
             label="Language"
             value={live?.language || catalog.language || "—"}
           />
-          <Meta label="License" value={live?.license || catalog.license || "—"} />
+          <Meta
+            label="License"
+            value={live?.license || catalog.license || "—"}
+          />
           <Meta
             label="Releases"
             value={

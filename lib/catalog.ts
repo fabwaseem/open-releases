@@ -172,6 +172,8 @@ function buildOrderBy(
         { latestRelease: { publishedAt: "desc" } },
         { stars: "desc" },
       ]
+    case "created":
+      return [{ createdAt: "desc" }, { stars: "desc" }]
     case "stars":
       return [{ stars: "desc" }, { name: "asc" }]
     case "score":

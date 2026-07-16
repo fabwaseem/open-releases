@@ -1,10 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * Purge CLI / server / infra tools from the catalog.
+ * Purge non-apps and repos with no usable installers from the catalog.
  *
  * Matches (including already-hidden rows from a prior soft-hide run) are:
  *   1. Removed from Repository (+ cascaded Release / favorites)
- *   2. Recorded on ScrapeRecord as skipped_non_app so scrape/import skip them
+ *   2. Recorded on ScrapeRecord as skipped_non_app or skipped_no_assets
  *
  * Usage:
  *   pnpm hide:non-apps              # dry-run
@@ -25,11 +25,21 @@ import {
   SKIPPED_NON_APP_STATUS,
   type NonAppMatch,
 } from "../lib/non-app.js"
+import {
+  hasUsableInstallers,
+  SKIPPED_NO_ASSETS_REASON,
+  SKIPPED_NO_ASSETS_STATUS,
+} from "../lib/platforms.js"
 
 type Args = {
   apply: boolean
   limit: number | null
   jsonPath: string | null
+}
+
+type PurgeMatch = NonAppMatch & {
+  scrapeStatus: string
+  scrapeReason: string
 }
 
 function parseArgs(argv: string[]): Args {
@@ -67,7 +77,29 @@ function fromRepo(repo: {
   hidden: boolean
   hiddenReason: string | null
   latestRelease: { assets: unknown } | null
-}): NonAppMatch | null {
+}): PurgeMatch | null {
+  const platforms = Array.isArray(repo.platforms)
+    ? (repo.platforms as string[])
+    : []
+  const assets = repo.latestRelease?.assets ?? []
+
+  // Empty / curation-stripped installers (e.g. only niche arches, unlabeled zips)
+  if (!hasUsableInstallers(assets)) {
+    return {
+      id: repo.id,
+      fullName: repo.fullName,
+      name: repo.name,
+      description: repo.description,
+      platforms,
+      stars: repo.stars,
+      reasons: ["no-usable-installers"],
+      rules: ["assets:empty-or-filtered"],
+      sampleAssets: [],
+      scrapeStatus: SKIPPED_NO_ASSETS_STATUS,
+      scrapeReason: SKIPPED_NO_ASSETS_REASON,
+    }
+  }
+
   const match = evaluateNonApp({
     id: repo.id,
     fullName: repo.fullName,
@@ -81,9 +113,15 @@ function fromRepo(repo: {
     hasLinux: repo.hasLinux,
     hasAndroid: repo.hasAndroid,
     hasIos: repo.hasIos,
-    assets: repo.latestRelease?.assets ?? [],
+    assets,
   })
-  if (match) return match
+  if (match) {
+    return {
+      ...match,
+      scrapeStatus: SKIPPED_NON_APP_STATUS,
+      scrapeReason: SKIPPED_NON_APP_REASON,
+    }
+  }
 
   // Prior soft-hide run — still purge even if heuristics drifted
   const reason = repo.hiddenReason ?? ""
@@ -96,13 +134,13 @@ function fromRepo(repo: {
       fullName: repo.fullName,
       name: repo.name,
       description: repo.description,
-      platforms: Array.isArray(repo.platforms)
-        ? (repo.platforms as string[])
-        : [],
+      platforms,
       stars: repo.stars,
       reasons: ["prior-soft-hide"],
       rules: ["legacy:hidden-non-app"],
       sampleAssets: [],
+      scrapeStatus: SKIPPED_NON_APP_STATUS,
+      scrapeReason: SKIPPED_NON_APP_REASON,
     }
   }
 
@@ -120,9 +158,13 @@ async function main() {
 
   let matches = repos
     .map((r) => fromRepo(r))
-    .filter((m): m is NonAppMatch => m != null)
+    .filter((m): m is PurgeMatch => m != null)
 
   const totalMatches = matches.length
+  const noAssets = matches.filter((m) =>
+    m.rules.includes("assets:empty-or-filtered")
+  ).length
+  const nonApps = totalMatches - noAssets
   const alreadyHidden = matches.filter((m) => {
     const repo = repos.find((r) => r.id === m.id)
     return Boolean(repo?.hidden)
@@ -132,14 +174,14 @@ async function main() {
   if (args.limit != null) matches = matches.slice(0, args.limit)
 
   console.log(
-    `Scanned ${repos.length} catalog repos → ${totalMatches} non-app matches (${visible} visible, ${alreadyHidden} already hidden)`
+    `Scanned ${repos.length} catalog repos → ${totalMatches} matches (${noAssets} no installers, ${nonApps} non-app; ${visible} visible, ${alreadyHidden} already hidden)`
   )
   if (args.limit != null && matches.length < totalMatches) {
     console.log(`Showing first ${matches.length} (--limit)`)
   }
   console.log(
     args.apply
-      ? "Mode: APPLY (delete repos + mark skipped_non_app)"
+      ? "Mode: APPLY (delete repos + mark scrape ledger)"
       : "Mode: dry-run"
   )
   console.log("")
@@ -148,7 +190,7 @@ async function main() {
     const repo = repos.find((r) => r.id === m.id)
     const flag = repo?.hidden ? " [hidden]" : ""
     console.log(
-      `${m.fullName.padEnd(42)} ★${String(m.stars).padStart(6)}${flag}  ${m.rules.join(" | ")}`
+      `${m.fullName.padEnd(42)} ★${String(m.stars).padStart(6)}${flag}  ${m.rules.join(" | ")} → ${m.scrapeStatus}`
     )
     console.log(`  reasons: ${m.reasons.join(", ")}`)
     if (m.description) {
@@ -163,7 +205,7 @@ async function main() {
 
   if (!args.apply) {
     console.log(
-      `\nDry-run only. Re-run with --apply to remove these and mark ${SKIPPED_NON_APP_STATUS}.`
+      `\nDry-run only. Re-run with --apply to remove these and mark scrape status.`
     )
     return
   }
@@ -178,13 +220,13 @@ async function main() {
         where: { fullName: m.fullName },
         create: {
           fullName: m.fullName,
-          status: SKIPPED_NON_APP_STATUS,
-          reason: SKIPPED_NON_APP_REASON,
+          status: m.scrapeStatus,
+          reason: m.scrapeReason,
           repositoryId: null,
         },
         update: {
-          status: SKIPPED_NON_APP_STATUS,
-          reason: SKIPPED_NON_APP_REASON,
+          status: m.scrapeStatus,
+          reason: m.scrapeReason,
           repositoryId: null,
           lastSeenAt: new Date(),
         },
@@ -194,7 +236,7 @@ async function main() {
   }
 
   console.log(
-    `\nRemoved ${removed} repositories (releases cascaded). Scrape ledger → ${SKIPPED_NON_APP_STATUS}.`
+    `\nRemoved ${removed} repositories (releases cascaded). Scrape ledger updated.`
   )
 }
 
@@ -207,7 +249,7 @@ if (isMain) {
   main()
     .catch((err) => {
       console.error(err)
-      process.exitCode = 1
+      process.exit(1)
     })
     .finally(async () => {
       await prisma.$disconnect()

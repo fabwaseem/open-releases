@@ -12,6 +12,7 @@ const SORT_FIELDS = [
   "fullName",
   "language",
   "scrapedAt",
+  "createdAt",
   "favorites",
   "featured",
 ] as const
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
         featured: true,
         featuredAt: true,
         scrapedAt: true,
+        createdAt: true,
         hasWindows: true,
         hasMacos: true,
         hasLinux: true,
@@ -138,6 +140,7 @@ export async function GET(request: NextRequest) {
     items: items.map((item) => ({
       ...item,
       scrapedAt: item.scrapedAt.toISOString(),
+      createdAt: item.createdAt.toISOString(),
       featuredAt: item.featuredAt?.toISOString() ?? null,
     })),
   })
