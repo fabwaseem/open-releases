@@ -8,6 +8,13 @@ export type SortKey =
   | "released"
   | "created"
 
+export type SortDir = "asc" | "desc"
+
+/** Natural/default direction for each sort key. */
+export function defaultSortDir(sort: SortKey): SortDir {
+  return sort === "name" ? "asc" : "desc"
+}
+
 export type ReleaseAsset = {
   name: string
   platform: Platform | string

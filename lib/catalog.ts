@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/db"
 import { isPlatform } from "@/lib/platforms"
-import type {
-  CatalogRepo,
-  LatestRelease,
-  Platform,
-  ReleaseAsset,
-  ReleasesFiltersResponse,
-  ReleasesListResponse,
-  SortKey,
+import {
+  defaultSortDir,
+  type CatalogRepo,
+  type LatestRelease,
+  type Platform,
+  type ReleaseAsset,
+  type ReleasesFiltersResponse,
+  type ReleasesListResponse,
+  type SortDir,
+  type SortKey,
 } from "@/lib/types"
 import type { Prisma } from "@/generated/prisma/client"
 
@@ -15,6 +17,7 @@ export type ListQuery = {
   q?: string
   platform?: Platform | "all"
   sort?: SortKey
+  dir?: SortDir
   language?: string
   page?: number
   pageSize?: number
@@ -26,10 +29,10 @@ type RepoWithRelease = Prisma.RepositoryGetPayload<{
 
 const SORT_OPTIONS = [
   { value: "score" as const, label: "Default" },
-  { value: "stars" as const, label: "Most stars" },
-  { value: "released" as const, label: "Newest release" },
-  { value: "updated" as const, label: "Recently updated" },
-  { value: "name" as const, label: "Name A–Z" },
+  { value: "stars" as const, label: "Stars" },
+  { value: "released" as const, label: "Release date" },
+  { value: "updated" as const, label: "Updated" },
+  { value: "name" as const, label: "Name" },
 ]
 
 function asStringArray(value: unknown): string[] {
@@ -157,27 +160,39 @@ function buildWhere(params: ListQuery): Prisma.RepositoryWhereInput {
   return where
 }
 
+function flipDir(dir: SortDir): SortDir {
+  return dir === "asc" ? "desc" : "asc"
+}
+
 function buildOrderBy(
-  sort: SortKey
+  sort: SortKey,
+  dir: SortDir = defaultSortDir(sort)
 ): Prisma.RepositoryOrderByWithRelationInput[] {
-  // Default sort pins featured repos first; filters still apply via `where`.
+  // Default score sort pins featured repos first; filters still apply via `where`.
   // Explicit sorts follow the user's choice without forcing featured to the top.
   switch (sort) {
     case "name":
-      return [{ name: "asc" }]
+      return [{ name: dir }]
     case "updated":
-      return [{ pushedAt: "desc" }, { stars: "desc" }]
+      return [{ pushedAt: dir }, { stars: flipDir(dir) }]
     case "released":
       return [
-        { latestRelease: { publishedAt: "desc" } },
-        { stars: "desc" },
+        { latestRelease: { publishedAt: dir } },
+        { stars: flipDir(dir) },
       ]
     case "created":
-      return [{ createdAt: "desc" }, { stars: "desc" }]
+      return [{ createdAt: dir }, { stars: flipDir(dir) }]
     case "stars":
-      return [{ stars: "desc" }, { name: "asc" }]
+      return [{ stars: dir }, { name: "asc" }]
     case "score":
     default:
+      if (dir === "asc") {
+        return [
+          { activityScore: "asc" },
+          { latestRelease: { publishedAt: "asc" } },
+          { stars: "asc" },
+        ]
+      }
       return [
         { featured: "desc" },
         { featuredAt: "desc" },
@@ -257,6 +272,7 @@ export async function queryCatalog(
   params: ListQuery
 ): Promise<ReleasesListResponse> {
   const sort = params.sort ?? "score"
+  const dir = params.dir ?? defaultSortDir(sort)
   const pageSize = Math.min(Math.max(params.pageSize ?? 24, 1), 100)
   const page = Math.max(params.page ?? 1, 1)
   const where = buildWhere(params)
@@ -268,7 +284,7 @@ export async function queryCatalog(
   const rows = await prisma.repository.findMany({
     where,
     include: { latestRelease: true },
-    orderBy: buildOrderBy(sort),
+    orderBy: buildOrderBy(sort, dir),
     skip: (safePage - 1) * pageSize,
     take: pageSize,
   })

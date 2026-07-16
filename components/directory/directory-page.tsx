@@ -9,6 +9,8 @@ import {
   LinuxLogoIcon,
   MagnifyingGlassIcon,
   ShuffleIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
   SpinnerGapIcon,
   SquaresFourIcon,
   WindowsLogoIcon,
@@ -38,7 +40,7 @@ import {
 } from "@/lib/api-client"
 import { useSession } from "@/lib/auth-client"
 import { brandCopy } from "@/lib/brand"
-import type { Platform, SortKey } from "@/lib/types"
+import { defaultSortDir, type Platform, type SortDir, type SortKey } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 18
@@ -99,17 +101,24 @@ function useDebouncedValue<T>(value: T, delay = 250): T {
   return debounced
 }
 
+function parseSortDir(value: string | null, sort: SortKey): SortDir {
+  if (value === "asc" || value === "desc") return value
+  return defaultSortDir(sort)
+}
+
 function buildFilterHref(
   pathname: string,
   {
     q,
     platform,
     sort,
+    dir,
     language,
   }: {
     q: string
     platform: Platform | "all"
     sort: SortKey
+    dir: SortDir
     language: string
   }
 ) {
@@ -118,13 +127,14 @@ function buildFilterHref(
   if (trimmed) params.set("q", trimmed)
   if (platform !== "all") params.set("platform", platform)
   if (sort !== "score") params.set("sort", sort)
+  if (dir !== defaultSortDir(sort)) params.set("dir", dir)
   if (language) params.set("language", language)
   const qs = params.toString()
   return qs ? `${pathname}?${qs}` : pathname
 }
 
 const filterTriggerClass =
-  "h-11 w-full min-w-0 border border-border/70 bg-card/60 px-4 transition-colors hover:border-border hover:bg-card focus-visible:border-ring"
+  "h-11 w-full min-w-0 border border-border/70 bg-card/60 px-4 transition-colors hover:border-border hover:bg-card focus-visible:border-ring data-[size=default]:h-11"
 
 export function DirectoryPage() {
   const router = useRouter()
@@ -152,6 +162,7 @@ export function DirectoryPage() {
   const urlQ = searchParams.get("q") ?? ""
   const platform = parsePlatform(searchParams.get("platform"))
   const sort = parseSort(searchParams.get("sort"), isAdmin, sessionPending)
+  const dir = parseSortDir(searchParams.get("dir"), sort)
   const language = searchParams.get("language")?.trim() ?? ""
 
   const [search, setSearch] = React.useState(urlQ)
@@ -167,12 +178,20 @@ export function DirectoryPage() {
       q?: string
       platform?: Platform | "all"
       sort?: SortKey
+      dir?: SortDir
       language?: string
     }) => {
+      const nextSort = next.sort ?? sort
       const href = buildFilterHref(pathname, {
         q: next.q ?? debouncedSearch,
         platform: next.platform ?? platform,
-        sort: next.sort ?? sort,
+        sort: nextSort,
+        // Changing sort resets to that sort's natural direction unless dir is set.
+        dir:
+          next.dir ??
+          (next.sort != null && next.sort !== sort
+            ? defaultSortDir(nextSort)
+            : dir),
         language: next.language ?? language,
       })
       const current = `${pathname}${
@@ -182,7 +201,16 @@ export function DirectoryPage() {
         router.replace(href, { scroll: false })
       }
     },
-    [debouncedSearch, language, pathname, platform, router, searchParams, sort]
+    [
+      debouncedSearch,
+      dir,
+      language,
+      pathname,
+      platform,
+      router,
+      searchParams,
+      sort,
+    ]
   )
 
   React.useEffect(() => {
@@ -197,6 +225,7 @@ export function DirectoryPage() {
     q: debouncedSearch,
     platform,
     sort,
+    dir,
     language: language || undefined,
     pageSize: PAGE_SIZE,
   }
@@ -255,18 +284,18 @@ export function DirectoryPage() {
   ]
   const sortOptions = React.useMemo(() => {
     const base = filters?.sort_options ?? [
-      { value: "score" as const, label: "Default" },
-      { value: "stars" as const, label: "Most stars" },
-      { value: "released" as const, label: "Newest release" },
-      { value: "updated" as const, label: "Recently updated" },
-      { value: "name" as const, label: "Name A–Z" },
+      { value: "score" as const, label: "Score" },
+      { value: "stars" as const, label: "Stars" },
+      { value: "released" as const, label: "Release date" },
+      { value: "updated" as const, label: "Updated" },
+      { value: "name" as const, label: "Name" },
     ]
     if (!isAdmin) return base.filter((option) => option.value !== "created")
     const hasCreated = base.some((option) => option.value === "created")
     if (hasCreated) return base
     return [
       base[0]!,
-      { value: "created" as const, label: "Newest added" },
+      { value: "created" as const, label: "Date added" },
       ...base.slice(1),
     ]
   }, [filters?.sort_options, isAdmin])
@@ -278,7 +307,7 @@ export function DirectoryPage() {
     }
   }, [isAdmin, replaceFilters, searchParams, sessionPending])
   const sortLabel =
-    sortOptions.find((option) => option.value === sort)?.label ?? "Default"
+    sortOptions.find((option) => option.value === sort)?.label ?? "Score"
   const languageLabel = language || "All"
   const activePlatform =
     platformFilters.find((item) => item.id === platform) ?? platformFilters[0]!
@@ -383,7 +412,7 @@ export function DirectoryPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1fr)] gap-2">
             <Select
               value={platform}
               onValueChange={(value) => {
@@ -433,8 +462,10 @@ export function DirectoryPage() {
                 if (value) replaceFilters({ sort: value as SortKey })
               }}
             >
-              <SelectTrigger className={cn(filterTriggerClass, "capitalize")}>
-                <SelectValue placeholder="Default">{sortLabel}</SelectValue>
+              <SelectTrigger
+                className={cn(filterTriggerClass, "capitalize")}
+              >
+                <SelectValue placeholder="Score">{sortLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {sortOptions.map((option) => (
@@ -444,6 +475,26 @@ export function DirectoryPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-lg"
+              className="shrink-0 border-border/70 bg-card/60 hover:border-border hover:bg-card"
+              aria-label={
+                dir === "asc" ? "Sort ascending" : "Sort descending"
+              }
+              title={dir === "asc" ? "Ascending" : "Descending"}
+              onClick={() =>
+                replaceFilters({ dir: dir === "asc" ? "desc" : "asc" })
+              }
+            >
+              {dir === "asc" ? (
+                <SortAscendingIcon className="size-4" weight="bold" />
+              ) : (
+                <SortDescendingIcon className="size-4" weight="bold" />
+              )}
+            </Button>
 
             <Select
               value={language || "all"}
@@ -497,6 +548,7 @@ export function DirectoryPage() {
                   q: "",
                   platform: "all",
                   sort: "score",
+                  dir: "desc",
                   language: "",
                 })
               }}

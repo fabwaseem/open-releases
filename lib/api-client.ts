@@ -3,6 +3,7 @@ import type {
   ReleasesFiltersResponse,
   ReleasesListResponse,
   RepoDetailResponse,
+  SortDir,
   SortKey,
 } from "@/lib/types"
 
@@ -10,6 +11,7 @@ export type ListParams = {
   q?: string
   platform?: Platform | "all"
   sort?: SortKey
+  dir?: SortDir
   language?: string
   page?: number
   pageSize?: number
@@ -21,6 +23,7 @@ function toQuery(params: ListParams): string {
   if (params.platform && params.platform !== "all")
     sp.set("platform", params.platform)
   if (params.sort) sp.set("sort", params.sort)
+  if (params.dir) sp.set("dir", params.dir)
   if (params.language) sp.set("language", params.language)
   if (params.page) sp.set("page", String(params.page))
   if (params.pageSize) sp.set("pageSize", String(params.pageSize))
