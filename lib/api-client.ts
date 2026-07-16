@@ -46,6 +46,22 @@ export async function fetchReleaseFilters(): Promise<ReleasesFiltersResponse> {
   return res.json()
 }
 
+export async function fetchSurpriseRepo(
+  platform?: Platform | null
+): Promise<{ full_name: string; owner: string; name: string }> {
+  const sp = new URLSearchParams()
+  if (platform) sp.set("platform", platform)
+  const qs = sp.toString()
+  const res = await fetch(`/api/releases/surprise${qs ? `?${qs}` : ""}`)
+  if (!res.ok) {
+    throw new Error(`Failed to pick a surprise repo (${res.status})`)
+  }
+  const data = (await res.json()) as {
+    repo: { full_name: string; owner: string; name: string }
+  }
+  return data.repo
+}
+
 export async function fetchRepoDetail(
   owner: string,
   name: string

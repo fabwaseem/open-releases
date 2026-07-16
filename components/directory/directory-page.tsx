@@ -8,12 +8,14 @@ import {
   DeviceMobileIcon,
   LinuxLogoIcon,
   MagnifyingGlassIcon,
+  ShuffleIcon,
   SpinnerGapIcon,
   SquaresFourIcon,
   WindowsLogoIcon,
   XIcon,
 } from "@phosphor-icons/react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import toast from "react-hot-toast"
 
 import { ReleaseCard } from "@/components/directory/release-card"
 import { AddRepoButton } from "@/components/submissions/add-repo-dialog"
@@ -27,7 +29,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { fetchReleaseFilters, fetchReleases, queryKeys } from "@/lib/api-client"
+import { useDetectedDevice } from "@/hooks/use-detected-device"
+import {
+  fetchReleaseFilters,
+  fetchReleases,
+  fetchSurpriseRepo,
+  queryKeys,
+} from "@/lib/api-client"
 import { useSession } from "@/lib/auth-client"
 import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
@@ -124,6 +132,22 @@ export function DirectoryPage() {
   const searchParams = useSearchParams()
   const { data: session, isPending: sessionPending } = useSession()
   const isAdmin = session?.user?.role === "admin"
+
+  const device = useDetectedDevice()
+  const [surprisePending, setSurprisePending] = React.useState(false)
+
+  const onSurpriseMe = React.useCallback(async () => {
+    if (surprisePending) return
+    setSurprisePending(true)
+    try {
+      const repo = await fetchSurpriseRepo(device?.platform ?? null)
+      router.push(`/repo/${repo.owner}/${repo.name}`)
+    } catch {
+      toast.error("Couldn’t find a surprise repo. Try again.")
+    } finally {
+      setSurprisePending(false)
+    }
+  }, [device?.platform, router, surprisePending])
 
   const urlQ = searchParams.get("q") ?? ""
   const platform = parsePlatform(searchParams.get("platform"))
@@ -313,28 +337,50 @@ export function DirectoryPage() {
             "bg-background/85 supports-[backdrop-filter]:bg-background/70"
           )}
         >
-          <div className="flex items-center gap-2.5 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 shadow-sm ring-1 ring-transparent transition-[box-shadow,ring-color] focus-within:ring-primary/35 sm:gap-3 sm:px-4 sm:py-2.5">
-            <MagnifyingGlassIcon className="size-4 shrink-0 text-primary sm:size-5" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={brandCopy.search.placeholder}
-              className="h-10 border-0 border-transparent px-0 text-base shadow-none focus-visible:border-transparent focus-visible:ring-0 sm:h-11 md:text-base"
-              aria-label="Search releases"
-            />
-            {search ? (
-              <button
-                type="button"
-                className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Clear search"
-                onClick={() => {
-                  setSearch("")
-                  replaceFilters({ q: "" })
-                }}
-              >
-                <XIcon className="size-4" weight="bold" />
-              </button>
-            ) : null}
+          <div className="flex items-stretch gap-2 sm:gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 shadow-sm ring-1 ring-transparent transition-[box-shadow,ring-color] focus-within:ring-primary/35 sm:gap-3 sm:px-4 sm:py-2.5">
+              <MagnifyingGlassIcon className="size-4 shrink-0 text-primary sm:size-5" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={brandCopy.search.placeholder}
+                className="h-10 border-0 border-transparent px-0 text-base shadow-none focus-visible:border-transparent focus-visible:ring-0 sm:h-11 md:text-base"
+                aria-label="Search releases"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setSearch("")
+                    replaceFilters({ q: "" })
+                  }}
+                >
+                  <XIcon className="size-4" weight="bold" />
+                </button>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto shrink-0 gap-1.5 self-stretch rounded-2xl border-border/70 bg-card/70 px-3 text-xs font-semibold tracking-wide uppercase shadow-sm sm:px-4 sm:text-sm"
+              disabled={surprisePending}
+              aria-label={
+                device?.platform
+                  ? `Surprise me with a ${device.label} app`
+                  : "Surprise me with a random high-scored app"
+              }
+              onClick={() => void onSurpriseMe()}
+            >
+              {surprisePending ? (
+                <SpinnerGapIcon className="size-4 animate-spin" />
+              ) : (
+                <ShuffleIcon className="size-4 text-primary" />
+              )}
+              <span className="hidden sm:inline">Surprise me</span>
+              <span className="sm:hidden">Surprise</span>
+            </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-2">

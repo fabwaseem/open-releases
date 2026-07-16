@@ -5,6 +5,7 @@
  * Migrates: Repository + latest Release only
  * On start: deletes all ScrapeRecord rows on the target (ledger stays local)
  * After upsert: deletes target repos whose fullName is not in source (keeps Neon = local)
+ * Preserves target admin flags: hidden / featured are not overwritten when already set on prod
  * Skips: users, favorites, submissions
  *
  * Fast path: bulk INSERT … ON CONFLICT via jsonb_to_recordset (few RTTs to Neon).
@@ -224,10 +225,22 @@ async function bulkUpsertRepos(target: PrismaClient, repos: RepoRow[]) {
       "hasLinux" = EXCLUDED."hasLinux",
       "hasAndroid" = EXCLUDED."hasAndroid",
       "hasIos" = EXCLUDED."hasIos",
-      hidden = EXCLUDED.hidden,
-      "hiddenReason" = EXCLUDED."hiddenReason",
-      featured = EXCLUDED.featured,
-      "featuredAt" = EXCLUDED."featuredAt",
+      hidden = CASE
+        WHEN "Repository".hidden THEN "Repository".hidden
+        ELSE EXCLUDED.hidden
+      END,
+      "hiddenReason" = CASE
+        WHEN "Repository".hidden THEN "Repository"."hiddenReason"
+        ELSE EXCLUDED."hiddenReason"
+      END,
+      featured = CASE
+        WHEN "Repository".featured THEN "Repository".featured
+        ELSE EXCLUDED.featured
+      END,
+      "featuredAt" = CASE
+        WHEN "Repository".featured THEN "Repository"."featuredAt"
+        ELSE EXCLUDED."featuredAt"
+      END,
       "scrapedAt" = EXCLUDED."scrapedAt",
       "releaseCheckedAt" = EXCLUDED."releaseCheckedAt",
       "activityScore" = EXCLUDED."activityScore",
@@ -397,6 +410,8 @@ async function deleteOrphanRepos(
         FROM jsonb_array_elements_text($1::jsonb) AS s(fn)
         WHERE s.fn = r."fullName"
       )
+      AND NOT r.hidden
+      AND NOT r.featured
       ORDER BY r."fullName"
       `,
       payload
@@ -412,6 +427,8 @@ async function deleteOrphanRepos(
       FROM jsonb_array_elements_text($1::jsonb) AS s(fn)
       WHERE s.fn = r."fullName"
     )
+    AND NOT r.hidden
+    AND NOT r.featured
     `,
     payload
   )
@@ -442,6 +459,9 @@ async function main() {
     `  mode:   ${flags.dryRun ? "dry-run (no writes)" : flags.confirm ? "LIVE write" : "blocked"}`
   )
   console.log(`  batch:  ${BATCH} rows / bulk upsert`)
+  console.log(
+    "  preserve: target hidden + featured (admin flags on prod are kept)"
+  )
 
   if (!flags.dryRun && !flags.confirm) {
     throw new Error(

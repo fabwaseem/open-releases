@@ -286,3 +286,38 @@ export async function queryCatalog(
     items,
   }
 }
+
+const SURPRISE_POOL = 80
+
+/**
+ * Random repo from the top activity-score pool, optionally filtered to a
+ * device platform. Falls back to all platforms when the pool is empty.
+ */
+export async function pickSurpriseRepo(
+  platform?: Platform | "all" | null
+): Promise<CatalogRepo | null> {
+  const preferred =
+    platform && platform !== "all"
+      ? await queryCatalog({
+          platform,
+          sort: "score",
+          page: 1,
+          pageSize: SURPRISE_POOL,
+        })
+      : null
+
+  const pool =
+    preferred && preferred.items.length > 0
+      ? preferred.items
+      : (
+          await queryCatalog({
+            platform: "all",
+            sort: "score",
+            page: 1,
+            pageSize: SURPRISE_POOL,
+          })
+        ).items
+
+  if (!pool.length) return null
+  return pool[Math.floor(Math.random() * pool.length)] ?? null
+}
