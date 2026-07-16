@@ -14,9 +14,12 @@ export function LegalPage({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <SiteHeader />
-      <main className="relative mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+      <main
+        id="main"
+        className="relative mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6 sm:py-14 lg:px-8"
+      >
         <p className="mb-2 text-[0.65rem] font-semibold tracking-[0.18em] text-primary uppercase">
           Legal
         </p>

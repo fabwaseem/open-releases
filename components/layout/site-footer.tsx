@@ -12,7 +12,7 @@ export function SiteFooter() {
         <div className="space-y-1">
           <BrandMark className="text-sm" />
           <p className="text-xs text-muted-foreground">
-            © {year} {siteConfig.name}. Desktop apps from open source.
+            © {year} {siteConfig.name}. Open-source apps for desktop and mobile.
           </p>
         </div>
         <nav
@@ -21,13 +21,13 @@ export function SiteFooter() {
         >
           <Link
             href="/privacy"
-            className="transition-colors hover:text-foreground"
+            className="transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Privacy
           </Link>
           <Link
             href="/terms"
-            className="transition-colors hover:text-foreground"
+            className="transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Terms
           </Link>

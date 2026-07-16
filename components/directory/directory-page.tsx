@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { fetchReleaseFilters, fetchReleases, queryKeys } from "@/lib/api-client"
 import { brandCopy } from "@/lib/brand"
 import type { Platform, SortKey } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 18
 
@@ -101,6 +102,9 @@ function buildFilterHref(
   const qs = params.toString()
   return qs ? `${pathname}?${qs}` : pathname
 }
+
+const filterTriggerClass =
+  "h-11 w-full min-w-0 border border-border/70 bg-card/60 px-4 transition-colors hover:border-border hover:bg-card focus-visible:border-ring"
 
 export function DirectoryPage() {
   const router = useRouter()
@@ -241,8 +245,8 @@ export function DirectoryPage() {
         }}
       />
 
-      <div className="relative mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
-        <header className="mb-6 space-y-4 sm:mb-8 sm:space-y-5 lg:mb-12">
+      <div className="relative mx-auto w-full max-w-[1400px] px-4 py-6 pb-10 sm:px-6 sm:py-8 sm:pb-14 lg:px-8 lg:py-12 lg:pb-16">
+        <header className="mb-6 space-y-4 sm:mb-8 sm:space-y-5 lg:mb-10">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="mb-1.5 text-[0.65rem] font-semibold tracking-[0.18em] text-primary uppercase sm:mb-2 sm:text-xs sm:tracking-[0.2em]">
@@ -255,7 +259,7 @@ export function DirectoryPage() {
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <AddRepoButton variant="tile" />
-              <div className="flex size-10 flex-col items-center justify-center rounded-xl bg-primary text-center sm:size-14">
+              <div className="flex size-10 flex-col items-center justify-center bg-primary text-center sm:size-14">
                 <p className="text-sm leading-none font-bold text-primary-foreground tabular-nums sm:text-xl">
                   {totalLoaded}
                 </p>
@@ -266,7 +270,7 @@ export function DirectoryPage() {
             </div>
           </div>
 
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg">
+          <p className="max-w-xl text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base lg:text-lg">
             <span className="sm:hidden">
               {brandCopy.hero.descriptionMobile}
             </span>
@@ -276,19 +280,25 @@ export function DirectoryPage() {
           </p>
         </header>
 
-        <section className="mb-6 space-y-3 sm:mb-8 sm:space-y-4">
-          <div className="flex items-center gap-2.5 rounded-2xl border border-border/70 bg-card/60 px-3 py-1.5 shadow-sm backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-2">
+        <section
+          aria-label="Search and filters"
+          className={cn(
+            "sticky top-0 z-10 -mx-4 mb-6 space-y-3 border-b border-transparent px-4 py-3 backdrop-blur-md sm:-mx-6 sm:mb-8 sm:space-y-3 sm:px-6 lg:-mx-8 lg:px-8",
+            "bg-background/85 supports-[backdrop-filter]:bg-background/70"
+          )}
+        >
+          <div className="flex items-center gap-2.5 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 shadow-sm ring-1 ring-transparent transition-[box-shadow,ring-color] focus-within:ring-primary/35 sm:gap-3 sm:px-4 sm:py-2.5">
             <MagnifyingGlassIcon className="size-4 shrink-0 text-primary sm:size-5" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={brandCopy.search.placeholder}
-              className="h-10 border-0 border-transparent px-0 text-base focus-visible:border-transparent focus-visible:ring-0 sm:h-12 md:text-base"
+              className="h-10 border-0 border-transparent px-0 text-base shadow-none focus-visible:border-transparent focus-visible:ring-0 sm:h-11 md:text-base"
               aria-label="Search releases"
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid  gap-2 grid-cols-3">
             <Select
               value={platform}
               onValueChange={(value) => {
@@ -298,12 +308,15 @@ export function DirectoryPage() {
               }}
             >
               <SelectTrigger
-                className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4"
+                className={filterTriggerClass}
                 aria-label="Filter by platform"
               >
                 <SelectValue placeholder="Platform">
                   <span className="inline-flex min-w-0 items-center gap-2">
-                    <ActivePlatformIcon className="size-4 shrink-0" weight="fill" />
+                    <ActivePlatformIcon
+                      className="size-4 shrink-0"
+                      weight="fill"
+                    />
                     <span className="truncate">{activePlatform.label}</span>
                     <span className="bg-muted px-1.5 text-[0.65rem] text-muted-foreground tabular-nums">
                       {activePlatform.count}
@@ -335,7 +348,7 @@ export function DirectoryPage() {
                 if (value) replaceFilters({ sort: value as SortKey })
               }}
             >
-              <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize">
+              <SelectTrigger className={cn(filterTriggerClass, "capitalize")}>
                 <SelectValue placeholder="Default">{sortLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -355,7 +368,7 @@ export function DirectoryPage() {
                 })
               }
             >
-              <SelectTrigger className="h-11 w-full min-w-0 border border-border/70 bg-card/50 px-4 capitalize">
+              <SelectTrigger className={cn(filterTriggerClass, "capitalize")}>
                 <SelectValue placeholder="All">{languageLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -383,15 +396,15 @@ export function DirectoryPage() {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-border/60 bg-card/40 px-6 py-16 text-center">
-            <p className="font-heading text-xl font-semibold">
+          <div className="rounded-2xl border border-border/60 bg-card/40 px-6 py-20 text-center">
+            <p className="font-heading text-xl font-semibold tracking-tight">
               {brandCopy.empty.title}
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
               {brandCopy.empty.body}
             </p>
             <Button
-              className="mt-6 rounded-xl"
+              className="mt-8 rounded-xl"
               variant="outline"
               onClick={() => {
                 setSearch("")
@@ -409,14 +422,18 @@ export function DirectoryPage() {
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-              {items.map((repo) => (
-                <ReleaseCard key={repo.full_name} repo={repo} />
+              {items.map((repo, index) => (
+                <ReleaseCard
+                  key={repo.full_name}
+                  repo={repo}
+                  staggerIndex={index % 12}
+                />
               ))}
             </div>
 
             <div
               ref={loadMoreRef}
-              className="mt-8 flex flex-col items-center gap-3 pb-4"
+              className="mt-10 flex flex-col items-center gap-3 pb-4"
             >
               {isFetchingNextPage ? (
                 <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">

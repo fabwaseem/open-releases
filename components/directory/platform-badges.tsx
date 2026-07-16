@@ -16,27 +16,27 @@ const PLATFORM_META: Record<
   windows: {
     label: "Windows",
     icon: WindowsLogoIcon,
-    className: "text-sky-700 dark:text-sky-400",
+    className: "text-sky-800 dark:text-sky-300",
   },
   macos: {
     label: "macOS",
     icon: AppleLogoIcon,
-    className: "text-zinc-700 dark:text-zinc-300",
+    className: "text-stone-700 dark:text-stone-300",
   },
   linux: {
     label: "Linux",
     icon: LinuxLogoIcon,
-    className: "text-amber-700 dark:text-amber-300",
+    className: "text-amber-800 dark:text-amber-300",
   },
   android: {
     label: "Android",
     icon: AndroidLogoIcon,
-    className: "text-emerald-700 dark:text-emerald-400",
+    className: "text-emerald-800 dark:text-emerald-300",
   },
   ios: {
     label: "iOS",
     icon: DeviceMobileIcon,
-    className: "text-violet-700 dark:text-violet-400",
+    className: "text-rose-800 dark:text-rose-300",
   },
 }
 

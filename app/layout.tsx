@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { DM_Sans, Geist_Mono, Space_Grotesk } from "next/font/google"
 import NextTopLoader from "nextjs-toploader"
 
+import { SkipLink } from "@/components/layout/skip-link"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
@@ -69,7 +70,9 @@ export default function RootLayout({
             __html: JSON.stringify(websiteJsonLd()),
           }}
         />
+        <div className="surface-grain" aria-hidden />
         <ThemeProvider defaultTheme="dark" enableSystem={false}>
+          <SkipLink />
           <NextTopLoader
             color="var(--primary)"
             height={3}

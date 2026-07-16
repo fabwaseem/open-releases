@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { GithubLogoIcon, StarIcon } from "@phosphor-icons/react"
@@ -12,7 +13,13 @@ import { formatRelativeDate, formatStars } from "@/lib/format"
 import type { CatalogRepo } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
+export function ReleaseCard({
+  repo,
+  staggerIndex = 0,
+}: {
+  repo: CatalogRepo
+  staggerIndex?: number
+}) {
   const tag = repo.latest_release?.tag
   const topics = (repo.topics ?? []).slice(0, 4)
   const href = `/repo/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`
@@ -20,9 +27,11 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
   return (
     <Card
       size="sm"
+      style={{ "--stagger": Math.min(staggerIndex, 11) } as CSSProperties}
       className={cn(
-        "relative h-full rounded-2xl bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color] duration-200",
-        "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/40 hover:shadow-[0_12px_40px_-20px_oklch(0.55_0.22_25_/_0.55)]"
+        "catalog-card-enter relative h-full rounded-2xl bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color,ring-color] duration-200",
+        "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/45 hover:shadow-[0_14px_44px_-22px_oklch(0.55_0.22_25_/_0.6)]",
+        "active:scale-[0.99]"
       )}
     >
       {/* Outside the link so actions don’t trigger NextTopLoader. */}
@@ -39,14 +48,17 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
         />
       </div>
 
-      <Link href={href} className="group flex h-full flex-col gap-4">
+      <Link
+        href={href}
+        className="group flex h-full flex-col gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      >
         <CardHeader className="gap-3 pr-16">
           <div className="flex items-start gap-3">
             <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
               {repo.avatar_url ? (
                 <Image
                   src={repo.avatar_url}
-                  alt=""
+                  alt={`${repo.name} avatar`}
                   fill
                   className="object-cover"
                   sizes="44px"
@@ -84,14 +96,14 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
             </div>
           </div>
           <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-foreground/70">
-            {repo.description || "No description provided."}
+            {repo.description || "No description"}
           </p>
           {topics.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {topics.map((topic) => (
                 <span
                   key={topic}
-                  className="rounded-md bg-muted px-1.5 py-0.5 text-[0.65rem] text-foreground/65"
+                  className="bg-muted px-1.5 py-0.5 text-[0.65rem] text-foreground/65"
                 >
                   #{topic}
                 </span>
@@ -103,11 +115,11 @@ export function ReleaseCard({ repo }: { repo: CatalogRepo }) {
           <PlatformBadges platforms={repo.platforms} />
         </CardContent>
         <CardFooter className="mt-auto flex items-center justify-between gap-3 border-t border-border text-xs text-foreground/65">
-          <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 font-medium text-amber-700 tabular-nums dark:text-amber-300">
             <StarIcon className="size-3.5" weight="fill" />
             {formatStars(repo.stars)}
           </span>
-          <span className="inline-flex items-center gap-1 truncate">
+          <span className="inline-flex min-w-0 items-center gap-1 truncate">
             <GithubLogoIcon className="size-3.5 shrink-0" />
             {repo.license || "No license"}
           </span>

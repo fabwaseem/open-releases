@@ -62,7 +62,7 @@ export const brandCopy = {
   favorites: {
     eyebrow: "Your collection",
     title: "Favorites",
-    description: "Desktop apps you saved for later.",
+    description: "Apps you saved for later — desktop and mobile.",
     emptyTitle: "No favorites yet",
     emptyBody: "Browse the directory and tap the heart on apps you like.",
     cta: "Browse Open Releases",
@@ -71,7 +71,7 @@ export const brandCopy = {
   auth: {
     signInSupport: "Sign in to save favorites and pick up where you left off.",
     signUpSupport:
-      "Create an account to save desktop apps and track releases you care about.",
+      "Create an account to save apps and track releases you care about.",
   },
 
   addRepo: {

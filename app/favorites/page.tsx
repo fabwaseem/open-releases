@@ -18,11 +18,11 @@ export default async function FavoritesRoute() {
   await requireSession()
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <SiteHeader />
-      <div className="flex-1">
+      <main id="main" className="flex-1">
         <FavoritesPage />
-      </div>
+      </main>
       <SiteFooter />
     </div>
   )

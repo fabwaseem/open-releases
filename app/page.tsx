@@ -7,9 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
-      <div className="flex-1">
+      <main id="main" className="flex-1">
         <Suspense
           fallback={
             <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
@@ -25,7 +25,7 @@ export default function Page() {
         >
           <DirectoryPage />
         </Suspense>
-      </div>
+      </main>
       <SiteFooter />
     </div>
   )
