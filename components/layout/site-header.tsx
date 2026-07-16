@@ -57,7 +57,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="text-base outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="text-base transition-opacity outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <BrandMark />
         </Link>
@@ -73,7 +73,10 @@ export function SiteHeader() {
               >
                 <Avatar size="lg" className="cursor-pointer">
                   {user.image ? (
-                    <AvatarImage src={user.image} alt={user.name || "Account"} />
+                    <AvatarImage
+                      src={user.image}
+                      alt={user.name || "Account"}
+                    />
                   ) : null}
                   <AvatarFallback>
                     {userInitials(user.name, user.email)}

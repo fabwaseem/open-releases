@@ -113,13 +113,11 @@ function buildFilterHref(
     platform,
     sort,
     dir,
-    language,
   }: {
     q: string
     platform: Platform | "all"
     sort: SortKey
     dir: SortDir
-    language: string
   }
 ) {
   const params = new URLSearchParams()
@@ -128,7 +126,6 @@ function buildFilterHref(
   if (platform !== "all") params.set("platform", platform)
   if (sort !== "score") params.set("sort", sort)
   if (dir !== defaultSortDir(sort)) params.set("dir", dir)
-  if (language) params.set("language", language)
   const qs = params.toString()
   return qs ? `${pathname}?${qs}` : pathname
 }
@@ -163,7 +160,6 @@ export function DirectoryPage() {
   const platform = parsePlatform(searchParams.get("platform"))
   const sort = parseSort(searchParams.get("sort"), isAdmin, sessionPending)
   const dir = parseSortDir(searchParams.get("dir"), sort)
-  const language = searchParams.get("language")?.trim() ?? ""
 
   const [search, setSearch] = React.useState(urlQ)
   const debouncedSearch = useDebouncedValue(search)
@@ -179,7 +175,6 @@ export function DirectoryPage() {
       platform?: Platform | "all"
       sort?: SortKey
       dir?: SortDir
-      language?: string
     }) => {
       const nextSort = next.sort ?? sort
       const href = buildFilterHref(pathname, {
@@ -192,7 +187,6 @@ export function DirectoryPage() {
           (next.sort != null && next.sort !== sort
             ? defaultSortDir(nextSort)
             : dir),
-        language: next.language ?? language,
       })
       const current = `${pathname}${
         searchParams.toString() ? `?${searchParams.toString()}` : ""
@@ -201,16 +195,7 @@ export function DirectoryPage() {
         router.replace(href, { scroll: false })
       }
     },
-    [
-      debouncedSearch,
-      dir,
-      language,
-      pathname,
-      platform,
-      router,
-      searchParams,
-      sort,
-    ]
+    [debouncedSearch, dir, pathname, platform, router, searchParams, sort]
   )
 
   React.useEffect(() => {
@@ -226,7 +211,6 @@ export function DirectoryPage() {
     platform,
     sort,
     dir,
-    language: language || undefined,
     pageSize: PAGE_SIZE,
   }
 
@@ -308,11 +292,9 @@ export function DirectoryPage() {
   }, [isAdmin, replaceFilters, searchParams, sessionPending])
   const sortLabel =
     sortOptions.find((option) => option.value === sort)?.label ?? "Score"
-  const languageLabel = language || "All"
   const activePlatform =
     platformFilters.find((item) => item.id === platform) ?? platformFilters[0]!
   const ActivePlatformIcon = PLATFORM_ICONS[activePlatform.id]
-  const languages = filters?.languages ?? []
   const items = data?.pages.flatMap((page) => page.items) ?? []
   const loadedCount = items.length
 
@@ -412,7 +394,7 @@ export function DirectoryPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1fr)] gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
             <Select
               value={platform}
               onValueChange={(value) => {
@@ -495,27 +477,6 @@ export function DirectoryPage() {
                 <SortDescendingIcon className="size-4" weight="bold" />
               )}
             </Button>
-
-            <Select
-              value={language || "all"}
-              onValueChange={(value) =>
-                replaceFilters({
-                  language: !value || value === "all" ? "" : value,
-                })
-              }
-            >
-              <SelectTrigger className={cn(filterTriggerClass, "capitalize")}>
-                <SelectValue placeholder="All">{languageLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.name} value={lang.name}>
-                    {lang.name} ({lang.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </section>
 
@@ -549,7 +510,6 @@ export function DirectoryPage() {
                   platform: "all",
                   sort: "score",
                   dir: "desc",
-                  language: "",
                 })
               }}
             >
