@@ -4,7 +4,10 @@
  *
  * Migrates: Repository + latest Release only
  * On start: deletes all ScrapeRecord rows on the target (ledger stays local)
+ * After upsert: deletes target repos whose fullName is not in source (keeps Neon = local)
  * Skips: users, favorites, submissions
+ *
+ * Fast path: bulk INSERT … ON CONFLICT via jsonb_to_recordset (few RTTs to Neon).
  *
  * Usage:
  *   pnpm db:migrate-scrape -- --dry-run
@@ -21,13 +24,76 @@ import "dotenv/config"
 
 import { PrismaPg } from "@prisma/adapter-pg"
 
-import { PrismaClient, type Prisma } from "../generated/prisma/client.js"
+import { PrismaClient } from "../generated/prisma/client.js"
 
-const BATCH = 100
+/** Rows per bulk upsert — one source read + two target writes. */
+const BATCH = 400
 
 type Flags = {
   dryRun: boolean
   confirm: boolean
+}
+
+type RepoRow = {
+  id: string
+  fullName: string
+  name: string
+  owner: string
+  description: string | null
+  url: string
+  homepage: string | null
+  stars: number
+  language: string | null
+  topics: unknown
+  license: string | null
+  avatarUrl: string | null
+  pushedAt: Date | null
+  releasesCount: number | null
+  platforms: unknown
+  hasWindows: boolean
+  hasMacos: boolean
+  hasLinux: boolean
+  hasAndroid: boolean
+  hasIos: boolean
+  hidden: boolean
+  hiddenReason: string | null
+  featured: boolean
+  featuredAt: Date | null
+  scrapedAt: Date
+  releaseCheckedAt: Date | null
+  activityScore: number
+  scoreNewStars: number
+  scoreReleaseFrequency: number
+  scoreRecentCommits: number
+  scoreContributorGrowth: number
+  scoreIssueActivity: number
+  previousStars: number | null
+  previousContributors: number | null
+  contributorsCount: number | null
+  scoredAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+type ReleaseRow = {
+  id: string
+  repositoryId: string
+  fullName: string
+  tag: string
+  name: string | null
+  publishedAt: Date | null
+  url: string | null
+  prerelease: boolean
+  body: string | null
+  platforms: unknown
+  hasWindows: boolean
+  hasMacos: boolean
+  hasLinux: boolean
+  hasAndroid: boolean
+  hasIos: boolean
+  assets: unknown
+  createdAt: Date
+  updatedAt: Date
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -69,29 +135,186 @@ function hostOf(url: string): string {
   }
 }
 
-function repoCreateData(
-  repo: Prisma.RepositoryGetPayload<object>
-): Prisma.RepositoryCreateInput {
-  const { id, createdAt, updatedAt, ...rest } = repo
-  return {
-    id,
-    ...rest,
-    createdAt,
-    updatedAt,
-  } as Prisma.RepositoryCreateInput
+function jsonPayload(rows: unknown[]): string {
+  return JSON.stringify(rows, (_key, value) => {
+    if (value instanceof Date) return value.toISOString()
+    return value
+  })
 }
 
-function repoUpdateData(
-  repo: Prisma.RepositoryGetPayload<object>
-): Prisma.RepositoryUpdateInput {
-  const {
-    id: _id,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    fullName: _fullName,
-    ...rest
-  } = repo
-  return rest as Prisma.RepositoryUpdateInput
+async function bulkUpsertRepos(target: PrismaClient, repos: RepoRow[]) {
+  if (repos.length === 0) return
+  const payload = jsonPayload(repos)
+
+  await target.$executeRawUnsafe(
+    `
+    INSERT INTO "Repository" (
+      id, "fullName", name, owner, description, url, homepage, stars,
+      language, topics, license, "avatarUrl", "pushedAt", "releasesCount",
+      platforms, "hasWindows", "hasMacos", "hasLinux", "hasAndroid", "hasIos",
+      hidden, "hiddenReason", featured, "featuredAt", "scrapedAt", "releaseCheckedAt",
+      "activityScore", "scoreNewStars", "scoreReleaseFrequency", "scoreRecentCommits",
+      "scoreContributorGrowth", "scoreIssueActivity", "previousStars",
+      "previousContributors", "contributorsCount", "scoredAt", "createdAt", "updatedAt"
+    )
+    SELECT
+      id, "fullName", name, owner, description, url, homepage, stars,
+      language, topics, license, "avatarUrl", "pushedAt", "releasesCount",
+      platforms, "hasWindows", "hasMacos", "hasLinux", "hasAndroid", "hasIos",
+      hidden, "hiddenReason", featured, "featuredAt", "scrapedAt", "releaseCheckedAt",
+      "activityScore", "scoreNewStars", "scoreReleaseFrequency", "scoreRecentCommits",
+      "scoreContributorGrowth", "scoreIssueActivity", "previousStars",
+      "previousContributors", "contributorsCount", "scoredAt", "createdAt", "updatedAt"
+    FROM jsonb_to_recordset($1::jsonb) AS x(
+      id text,
+      "fullName" text,
+      name text,
+      owner text,
+      description text,
+      url text,
+      homepage text,
+      stars int,
+      language text,
+      topics jsonb,
+      license text,
+      "avatarUrl" text,
+      "pushedAt" timestamptz,
+      "releasesCount" int,
+      platforms jsonb,
+      "hasWindows" boolean,
+      "hasMacos" boolean,
+      "hasLinux" boolean,
+      "hasAndroid" boolean,
+      "hasIos" boolean,
+      hidden boolean,
+      "hiddenReason" text,
+      featured boolean,
+      "featuredAt" timestamptz,
+      "scrapedAt" timestamptz,
+      "releaseCheckedAt" timestamptz,
+      "activityScore" double precision,
+      "scoreNewStars" double precision,
+      "scoreReleaseFrequency" double precision,
+      "scoreRecentCommits" double precision,
+      "scoreContributorGrowth" double precision,
+      "scoreIssueActivity" double precision,
+      "previousStars" int,
+      "previousContributors" int,
+      "contributorsCount" int,
+      "scoredAt" timestamptz,
+      "createdAt" timestamptz,
+      "updatedAt" timestamptz
+    )
+    ON CONFLICT ("fullName") DO UPDATE SET
+      name = EXCLUDED.name,
+      owner = EXCLUDED.owner,
+      description = EXCLUDED.description,
+      url = EXCLUDED.url,
+      homepage = EXCLUDED.homepage,
+      stars = EXCLUDED.stars,
+      language = EXCLUDED.language,
+      topics = EXCLUDED.topics,
+      license = EXCLUDED.license,
+      "avatarUrl" = EXCLUDED."avatarUrl",
+      "pushedAt" = EXCLUDED."pushedAt",
+      "releasesCount" = EXCLUDED."releasesCount",
+      platforms = EXCLUDED.platforms,
+      "hasWindows" = EXCLUDED."hasWindows",
+      "hasMacos" = EXCLUDED."hasMacos",
+      "hasLinux" = EXCLUDED."hasLinux",
+      "hasAndroid" = EXCLUDED."hasAndroid",
+      "hasIos" = EXCLUDED."hasIos",
+      hidden = EXCLUDED.hidden,
+      "hiddenReason" = EXCLUDED."hiddenReason",
+      featured = EXCLUDED.featured,
+      "featuredAt" = EXCLUDED."featuredAt",
+      "scrapedAt" = EXCLUDED."scrapedAt",
+      "releaseCheckedAt" = EXCLUDED."releaseCheckedAt",
+      "activityScore" = EXCLUDED."activityScore",
+      "scoreNewStars" = EXCLUDED."scoreNewStars",
+      "scoreReleaseFrequency" = EXCLUDED."scoreReleaseFrequency",
+      "scoreRecentCommits" = EXCLUDED."scoreRecentCommits",
+      "scoreContributorGrowth" = EXCLUDED."scoreContributorGrowth",
+      "scoreIssueActivity" = EXCLUDED."scoreIssueActivity",
+      "previousStars" = EXCLUDED."previousStars",
+      "previousContributors" = EXCLUDED."previousContributors",
+      "contributorsCount" = EXCLUDED."contributorsCount",
+      "scoredAt" = EXCLUDED."scoredAt",
+      "updatedAt" = EXCLUDED."updatedAt"
+    `,
+    payload
+  )
+}
+
+async function bulkUpsertReleases(target: PrismaClient, releases: ReleaseRow[]) {
+  if (releases.length === 0) return
+  const payload = jsonPayload(releases)
+
+  // Join by fullName so we attach to the target row even when ids differ.
+  await target.$executeRawUnsafe(
+    `
+    INSERT INTO "Release" (
+      id, "repositoryId", tag, name, "publishedAt", url, prerelease, body,
+      platforms, "hasWindows", "hasMacos", "hasLinux", "hasAndroid", "hasIos",
+      assets, "createdAt", "updatedAt"
+    )
+    SELECT
+      x.id,
+      r.id,
+      x.tag,
+      x.name,
+      x."publishedAt",
+      x.url,
+      x.prerelease,
+      x.body,
+      x.platforms,
+      x."hasWindows",
+      x."hasMacos",
+      x."hasLinux",
+      x."hasAndroid",
+      x."hasIos",
+      x.assets,
+      x."createdAt",
+      x."updatedAt"
+    FROM jsonb_to_recordset($1::jsonb) AS x(
+      id text,
+      "repositoryId" text,
+      "fullName" text,
+      tag text,
+      name text,
+      "publishedAt" timestamptz,
+      url text,
+      prerelease boolean,
+      body text,
+      platforms jsonb,
+      "hasWindows" boolean,
+      "hasMacos" boolean,
+      "hasLinux" boolean,
+      "hasAndroid" boolean,
+      "hasIos" boolean,
+      assets jsonb,
+      "createdAt" timestamptz,
+      "updatedAt" timestamptz
+    )
+    INNER JOIN "Repository" r ON r."fullName" = x."fullName"
+    ON CONFLICT ("repositoryId") DO UPDATE SET
+      tag = EXCLUDED.tag,
+      name = EXCLUDED.name,
+      "publishedAt" = EXCLUDED."publishedAt",
+      url = EXCLUDED.url,
+      prerelease = EXCLUDED.prerelease,
+      body = EXCLUDED.body,
+      platforms = EXCLUDED.platforms,
+      "hasWindows" = EXCLUDED."hasWindows",
+      "hasMacos" = EXCLUDED."hasMacos",
+      "hasLinux" = EXCLUDED."hasLinux",
+      "hasAndroid" = EXCLUDED."hasAndroid",
+      "hasIos" = EXCLUDED."hasIos",
+      assets = EXCLUDED.assets,
+      "updatedAt" = EXCLUDED."updatedAt"
+    `,
+    payload
+  )
 }
 
 async function migrateRepos(
@@ -102,6 +325,8 @@ async function migrateRepos(
   let cursor: string | undefined
   let reposUpserted = 0
   let releasesUpserted = 0
+  const sourceFullNames: string[] = []
+  const started = Date.now()
 
   for (;;) {
     const batch = await source.repository.findMany({
@@ -116,53 +341,82 @@ async function migrateRepos(
     if (batch.length === 0) break
     cursor = batch[batch.length - 1]!.id
 
+    const repos: RepoRow[] = []
+    const releases: ReleaseRow[] = []
+
     for (const row of batch) {
       const { latestRelease, ...repo } = row
-
-      if (dryRun) {
-        reposUpserted += 1
-        if (latestRelease) releasesUpserted += 1
-        continue
-      }
-
-      const upserted = await target.repository.upsert({
-        where: { fullName: repo.fullName },
-        create: repoCreateData(repo),
-        update: repoUpdateData(repo),
-      })
-      reposUpserted += 1
-
+      repos.push(repo)
+      sourceFullNames.push(repo.fullName)
       if (latestRelease) {
-        const {
-          id: releaseId,
-          repositoryId: _repositoryId,
-          createdAt,
-          updatedAt,
-          ...releaseFields
-        } = latestRelease
-
-        await target.release.upsert({
-          where: { repositoryId: upserted.id },
-          create: {
-            id: releaseId,
-            repositoryId: upserted.id,
-            ...releaseFields,
-            createdAt,
-            updatedAt,
-          } as Prisma.ReleaseUncheckedCreateInput,
-          update: releaseFields as Prisma.ReleaseUpdateInput,
+        releases.push({
+          ...latestRelease,
+          fullName: repo.fullName,
         })
-        releasesUpserted += 1
       }
     }
 
+    if (!dryRun) {
+      await bulkUpsertRepos(target, repos)
+      await bulkUpsertReleases(target, releases)
+    }
+
+    reposUpserted += repos.length
+    releasesUpserted += releases.length
+
+    const elapsed = ((Date.now() - started) / 1000).toFixed(1)
+    const rate = Math.round(reposUpserted / Math.max((Date.now() - started) / 1000, 0.001))
     process.stdout.write(
-      `\r  repositories… ${reposUpserted}${dryRun ? " (dry-run)" : ""}`
+      `\r  repositories… ${reposUpserted}${dryRun ? " (dry-run)" : ""}  (${elapsed}s, ~${rate}/s)   `
     )
   }
 
   process.stdout.write("\n")
-  return { reposUpserted, releasesUpserted }
+  return { reposUpserted, releasesUpserted, sourceFullNames }
+}
+
+/** Remove prod repos that no longer exist in the local catalog. Cascades releases. */
+async function deleteOrphanRepos(
+  target: PrismaClient,
+  sourceFullNames: string[],
+  dryRun: boolean
+) {
+  if (sourceFullNames.length === 0) {
+    throw new Error("Refusing orphan delete: source catalog is empty.")
+  }
+
+  const payload = JSON.stringify(sourceFullNames)
+
+  if (dryRun) {
+    const rows = await target.$queryRawUnsafe<{ fullName: string }[]>(
+      `
+      SELECT r."fullName"
+      FROM "Repository" r
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements_text($1::jsonb) AS s(fn)
+        WHERE s.fn = r."fullName"
+      )
+      ORDER BY r."fullName"
+      `,
+      payload
+    )
+    return { deleted: rows.length, sample: rows.slice(0, 10).map((r) => r.fullName) }
+  }
+
+  const deleted = await target.$executeRawUnsafe(
+    `
+    DELETE FROM "Repository" r
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements_text($1::jsonb) AS s(fn)
+      WHERE s.fn = r."fullName"
+    )
+    `,
+    payload
+  )
+
+  return { deleted: Number(deleted), sample: [] as string[] }
 }
 
 async function main() {
@@ -187,6 +441,7 @@ async function main() {
   console.log(
     `  mode:   ${flags.dryRun ? "dry-run (no writes)" : flags.confirm ? "LIVE write" : "blocked"}`
   )
+  console.log(`  batch:  ${BATCH} rows / bulk upsert`)
 
   if (!flags.dryRun && !flags.confirm) {
     throw new Error(
@@ -219,16 +474,38 @@ async function main() {
     }
 
     console.log("\nMigrating repositories (+ latest releases)…")
+    const t0 = Date.now()
     const repoStats = await migrateRepos(source, target, flags.dryRun)
+
+    console.log("\nDeleting target repos missing from source…")
+    const orphanStats = await deleteOrphanRepos(
+      target,
+      repoStats.sourceFullNames,
+      flags.dryRun
+    )
+    if (flags.dryRun) {
+      console.log(`  would delete ${orphanStats.deleted} orphan repo(s)`)
+      if (orphanStats.sample.length) {
+        console.log(`  sample: ${orphanStats.sample.join(", ")}`)
+      }
+    } else {
+      console.log(`  deleted ${orphanStats.deleted} orphan repo(s)`)
+    }
+
+    const seconds = ((Date.now() - t0) / 1000).toFixed(1)
 
     const targetAfter = flags.dryRun
       ? targetRepos
       : await target.repository.count()
 
     console.log("\nDone.")
+    console.log(`  elapsed:                ${seconds}s`)
     console.log(`  scrape records cleared: ${flags.dryRun ? targetScrapes : "yes"}`)
     console.log(`  repositories upserted:  ${repoStats.reposUpserted}`)
     console.log(`  releases upserted:      ${repoStats.releasesUpserted}`)
+    console.log(
+      `  orphan repos deleted:   ${flags.dryRun ? `${orphanStats.deleted} (dry-run)` : orphanStats.deleted}`
+    )
     console.log(`  target repos (after):   ${targetAfter}`)
   } finally {
     await Promise.all([source.$disconnect(), target.$disconnect()])

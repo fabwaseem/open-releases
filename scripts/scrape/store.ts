@@ -2,9 +2,7 @@ import "dotenv/config"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../../generated/prisma/client.js"
 import {
-  computeActivityScore,
-  releaseFrequencyPerMonth,
-  starVelocityProxy,
+  buildRepositoryScoreFields,
 } from "../../lib/score.js"
 import {
   summarizePlatforms,
@@ -173,6 +171,24 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
     ? new Date(release.publishedAt)
     : null
 
+  const existing = await prisma.repository.findUnique({
+    where: { fullName },
+    select: { previousStars: true, previousContributors: true, scoredAt: true },
+  })
+
+  const scoreFields = buildRepositoryScoreFields({
+    stars: node.stargazerCount ?? 0,
+    previousStars: existing?.previousStars ?? null,
+    previousContributors: existing?.previousContributors ?? null,
+    scoredAt: existing?.scoredAt ?? null,
+    repoCreatedAt: null,
+    latestReleasePublishedAt: publishedAt,
+    releasePublishedAts: releases.map((r) => r.publishedAt),
+    recentCommits: 0,
+    contributorsCount: existing?.previousContributors ?? 0,
+    openIssues: 0,
+  })
+
   const repo = await prisma.repository.upsert({
     where: { fullName },
     create: {
@@ -197,6 +213,7 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
       hasIos: summary.hasIos,
       hidden: false,
       scrapedAt: new Date(),
+      ...scoreFields,
       latestRelease: {
         create: {
           tag: release.tagName ?? "unknown",
@@ -235,6 +252,7 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
       hasAndroid: summary.hasAndroid,
       hasIos: summary.hasIos,
       scrapedAt: new Date(),
+      ...scoreFields,
       latestRelease: {
         upsert: {
           create: {
@@ -324,48 +342,24 @@ function buildScoreFields(
   previous: {
     previousStars: number | null
     previousContributors: number | null
-  } | null
+    scoredAt: Date | null
+  } | null,
+  latestReleasePublishedAt: Date | null
 ) {
-  const stars = repo.stargazers_count ?? 0
-  const contributors = activity.contributorsCount
-
-  const newStars =
-    previous?.previousStars != null
-      ? Math.max(0, stars - previous.previousStars)
-      : starVelocityProxy(
-          stars,
-          repo.created_at ? new Date(repo.created_at) : activity.createdAt
-        )
-
-  const contributorGrowth =
-    previous?.previousContributors != null
-      ? Math.max(0, contributors - previous.previousContributors)
-      : Math.min(contributors, 25)
-
-  const releaseFrequency = releaseFrequencyPerMonth(
-    releases.map((r) => r.published_at)
-  )
-
-  const breakdown = computeActivityScore({
-    newStars,
-    releaseFrequency,
+  return buildRepositoryScoreFields({
+    stars: repo.stargazers_count ?? 0,
+    previousStars: previous?.previousStars ?? null,
+    previousContributors: previous?.previousContributors ?? null,
+    scoredAt: previous?.scoredAt ?? null,
+    repoCreatedAt: repo.created_at
+      ? new Date(repo.created_at)
+      : activity.createdAt,
+    latestReleasePublishedAt,
+    releasePublishedAts: releases.map((r) => r.published_at),
     recentCommits: activity.recentCommits,
-    contributorGrowth,
-    issueActivity: activity.openIssues,
+    contributorsCount: activity.contributorsCount,
+    openIssues: activity.openIssues,
   })
-
-  return {
-    activityScore: breakdown.score,
-    scoreNewStars: breakdown.newStars,
-    scoreReleaseFrequency: breakdown.releaseFrequency,
-    scoreRecentCommits: breakdown.recentCommits,
-    scoreContributorGrowth: breakdown.contributorGrowth,
-    scoreIssueActivity: breakdown.issueActivity,
-    previousStars: stars,
-    previousContributors: contributors,
-    contributorsCount: contributors,
-    scoredAt: new Date(),
-  }
 }
 
 /** Persist from Core REST payloads (HTML discovery path). */
@@ -434,10 +428,16 @@ export async function saveRepoFromRest(
 
   const existing = await prisma.repository.findUnique({
     where: { fullName },
-    select: { previousStars: true, previousContributors: true },
+    select: { previousStars: true, previousContributors: true, scoredAt: true },
   })
 
-  const scoreFields = buildScoreFields(repo, releases, activity, existing)
+  const scoreFields = buildScoreFields(
+    repo,
+    releases,
+    activity,
+    existing,
+    publishedAt
+  )
 
   const row = await prisma.repository.upsert({
     where: { fullName },

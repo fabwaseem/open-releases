@@ -182,6 +182,7 @@ function buildOrderBy(
         { featured: "desc" },
         { featuredAt: "desc" },
         { activityScore: "desc" },
+        { latestRelease: { publishedAt: "desc" } },
         { stars: "desc" },
       ]
   }

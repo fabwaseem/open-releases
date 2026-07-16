@@ -3,7 +3,6 @@
 import * as React from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-import { CustomCursor } from "@/components/effects/custom-cursor"
 import { PageLoader } from "@/components/effects/page-loader"
 
 function makeQueryClient() {
@@ -36,7 +35,6 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <PageLoader />
-      <CustomCursor />
       {children}
     </QueryClientProvider>
   )

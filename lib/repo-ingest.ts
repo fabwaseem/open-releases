@@ -14,9 +14,7 @@ import {
   SKIPPED_NON_APP_STATUS,
 } from "@/lib/non-app"
 import {
-  computeActivityScore,
-  releaseFrequencyPerMonth,
-  starVelocityProxy,
+  buildRepositoryScoreFields,
 } from "@/lib/score"
 import { parseGithubRepoInput } from "@/lib/repo-url"
 import type { RepoPreview } from "@/lib/repo-submission-types"
@@ -212,46 +210,24 @@ function buildScoreFields(
   previous: {
     previousStars: number | null
     previousContributors: number | null
-  } | null
+    scoredAt: Date | null
+  } | null,
+  latestReleasePublishedAt: Date | null
 ) {
-  const stars = repo.stargazers_count ?? 0
-  const contributors = activity.contributorsCount
-
-  const newStars =
-    previous?.previousStars != null
-      ? Math.max(0, stars - previous.previousStars)
-      : starVelocityProxy(
-          stars,
-          repo.created_at ? new Date(repo.created_at) : activity.createdAt
-        )
-
-  const contributorGrowth =
-    previous?.previousContributors != null
-      ? Math.max(0, contributors - previous.previousContributors)
-      : Math.min(contributors, 25)
-
-  const breakdown = computeActivityScore({
-    newStars,
-    releaseFrequency: releaseFrequencyPerMonth(
-      releases.map((r) => r.published_at)
-    ),
+  return buildRepositoryScoreFields({
+    stars: repo.stargazers_count ?? 0,
+    previousStars: previous?.previousStars ?? null,
+    previousContributors: previous?.previousContributors ?? null,
+    scoredAt: previous?.scoredAt ?? null,
+    repoCreatedAt: repo.created_at
+      ? new Date(repo.created_at)
+      : activity.createdAt,
+    latestReleasePublishedAt,
+    releasePublishedAts: releases.map((r) => r.published_at),
     recentCommits: activity.recentCommits,
-    contributorGrowth,
-    issueActivity: activity.openIssues,
+    contributorsCount: activity.contributorsCount,
+    openIssues: activity.openIssues,
   })
-
-  return {
-    activityScore: breakdown.score,
-    scoreNewStars: breakdown.newStars,
-    scoreReleaseFrequency: breakdown.releaseFrequency,
-    scoreRecentCommits: breakdown.recentCommits,
-    scoreContributorGrowth: breakdown.contributorGrowth,
-    scoreIssueActivity: breakdown.issueActivity,
-    previousStars: stars,
-    previousContributors: contributors,
-    contributorsCount: contributors,
-    scoredAt: new Date(),
-  }
 }
 
 /** Fetch and persist a repo into the public catalog (admin approve / bulk import). */
@@ -323,15 +299,27 @@ export async function ingestGithubRepo(
         { fullName: { equals: fullName, mode: "insensitive" } },
       ],
     },
-    select: { id: true, fullName: true, previousStars: true, previousContributors: true },
+    select: {
+      id: true,
+      fullName: true,
+      previousStars: true,
+      previousContributors: true,
+      scoredAt: true,
+    },
   })
-  const scoreFields = buildScoreFields(repo, releases, activity, existing)
-
-  const ownerLogin = repo.owner?.login ?? canonOwner
-  const pushedAt = repo.pushed_at ? new Date(repo.pushed_at) : null
   const publishedAt = picked.release.published_at
     ? new Date(picked.release.published_at)
     : null
+  const scoreFields = buildScoreFields(
+    repo,
+    releases,
+    activity,
+    existing,
+    publishedAt
+  )
+
+  const ownerLogin = repo.owner?.login ?? canonOwner
+  const pushedAt = repo.pushed_at ? new Date(repo.pushed_at) : null
   const topics = repo.topics ?? []
   const assets = picked.assets
   const release = picked.release
