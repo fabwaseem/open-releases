@@ -12,6 +12,11 @@ import {
   type DesktopAsset,
 } from "./platforms.js"
 import type { ActivitySignals } from "./github.js"
+import {
+  evaluateNonApp,
+  SKIPPED_NON_APP_REASON,
+  SKIPPED_NON_APP_STATUS,
+} from "../../lib/non-app.js"
 
 const globalForPrisma = globalThis as unknown as { scrapePrisma?: PrismaClient }
 
@@ -140,6 +145,25 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
     node.repositoryTopics?.nodes
       ?.map((n) => n?.topic?.name)
       .filter((t): t is string => Boolean(t)) ?? []
+
+  const nonApp = evaluateNonApp({
+    fullName,
+    name: node.name,
+    description: node.description ?? null,
+    topics,
+    hasWindows: summary.hasWindows,
+    hasMacos: summary.hasMacos,
+    hasLinux: summary.hasLinux,
+    hasAndroid: summary.hasAndroid,
+    hasIos: summary.hasIos,
+    platforms: summary.platforms,
+    assets,
+    stars: node.stargazerCount ?? 0,
+  })
+  if (nonApp) {
+    await markScrape(fullName, SKIPPED_NON_APP_STATUS, SKIPPED_NON_APP_REASON)
+    return { saved: false as const, reason: "non_app" as const }
+  }
 
   const owner = node.owner?.login ?? fullName.split("/")[0]!
   const pushedAt = node.pushedAt ? new Date(node.pushedAt) : null
@@ -386,6 +410,25 @@ export async function saveRepoFromRest(
     ? new Date(release.published_at)
     : null
   const topics = repo.topics ?? []
+
+  const nonApp = evaluateNonApp({
+    fullName,
+    name: repo.name,
+    description: repo.description ?? null,
+    topics,
+    hasWindows: summary.hasWindows,
+    hasMacos: summary.hasMacos,
+    hasLinux: summary.hasLinux,
+    hasAndroid: summary.hasAndroid,
+    hasIos: summary.hasIos,
+    platforms: summary.platforms,
+    assets,
+    stars: repo.stargazers_count ?? 0,
+  })
+  if (nonApp) {
+    await markScrape(fullName, SKIPPED_NON_APP_STATUS, SKIPPED_NON_APP_REASON)
+    return { saved: false as const, reason: "non_app" }
+  }
 
   const existing = await prisma.repository.findUnique({
     where: { fullName },

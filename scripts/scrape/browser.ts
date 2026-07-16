@@ -1,6 +1,6 @@
 /**
- * HTML discovery — uses github.com search pages so we never touch
- * the Search API (30 req/min). Markup can change; treat as best-effort.
+ * HTML discovery — fallback when no token / API search unavailable.
+ * Prefer REST `/search/repositories` (see github.ts) when authenticated.
  */
 
 const SEARCH = "https://github.com/search"
@@ -31,8 +31,13 @@ async function fetchHtml(url: string): Promise<string> {
   let res = await fetch(url, { headers: headers(), redirect: "follow" })
   if (res.status === 403 || res.status === 429) {
     const retry = Number(res.headers.get("retry-after") ?? "30")
-    console.warn(`browser blocked ${res.status}, sleep ${retry}s`)
-    await sleep(Math.min(Math.max(retry, 5), 90) * 1000)
+    // Cap wait — GitHub sometimes sends hour-long Retry-After on HTML.
+    const waitSec = Math.min(Math.max(retry, 5), 90)
+    console.warn(
+      `browser blocked ${res.status}, sleep ${waitSec}s` +
+        (retry > waitSec ? ` (Retry-After was ${retry}s)` : "")
+    )
+    await sleep(waitSec * 1000)
     res = await fetch(url, { headers: headers(), redirect: "follow" })
   }
   if (!res.ok) {

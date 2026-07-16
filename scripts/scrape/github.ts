@@ -208,3 +208,62 @@ export async function fetchRepoAndReleases(fullName: string): Promise<{
     },
   }
 }
+
+export type SearchHit = {
+  fullName: string
+  owner: string
+  name: string
+  url: string
+}
+
+/**
+ * Authenticated repo discovery via REST Search API (30 req/min).
+ * Same rate pool as GraphQL `search` — prefer this over HTML scraping.
+ * Max 1000 results per query (page * per_page ≤ 1000).
+ */
+export async function searchReposApi(
+  query: string,
+  page: number
+): Promise<{ hits: SearchHit[]; totalCount: number }> {
+  type SearchResponse = {
+    total_count?: number
+    items?: Array<{
+      full_name?: string
+      name?: string
+      html_url?: string
+      owner?: { login?: string }
+    }>
+  }
+
+  const data = await restGet<SearchResponse>("/search/repositories", {
+    q: query,
+    sort: "stars",
+    order: "desc",
+    per_page: 100,
+    page,
+  })
+
+  const items = data?.items ?? []
+  const hits: SearchHit[] = []
+  for (const item of items) {
+    const fullName = item.full_name
+    if (!fullName || !fullName.includes("/")) continue
+    const [owner, name] = fullName.split("/")
+    if (!owner || !name) continue
+    hits.push({
+      fullName,
+      owner,
+      name,
+      url: item.html_url ?? `https://github.com/${fullName}`,
+    })
+  }
+
+  return {
+    hits,
+    totalCount: data?.total_count ?? hits.length,
+  }
+}
+
+export function hasGithubToken() {
+  return Boolean(process.env.GITHUB_TOKEN || process.env.GH_TOKEN)
+}

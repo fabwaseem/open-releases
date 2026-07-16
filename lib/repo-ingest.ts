@@ -8,6 +8,12 @@ import {
 } from "@/lib/github-rest"
 import { filterDesktopAssets, summarizePlatforms } from "@/lib/platforms"
 import {
+  evaluateNonApp,
+  nonAppErrorMessage,
+  SKIPPED_NON_APP_REASON,
+  SKIPPED_NON_APP_STATUS,
+} from "@/lib/non-app"
+import {
   computeActivityScore,
   releaseFrequencyPerMonth,
   starVelocityProxy,
@@ -26,6 +32,7 @@ export type PreviewFailure = {
     | "private"
     | "no_releases"
     | "no_assets"
+    | "non_app"
     | "already_listed"
     | "already_pending"
     | "github_error"
@@ -161,6 +168,30 @@ export async function previewGithubRepo(
       }
     }
 
+    const summary = summarizePlatforms(picked.assets)
+    const nonApp = evaluateNonApp({
+      fullName: repo.full_name,
+      name: repo.name,
+      description: repo.description ?? null,
+      topics: repo.topics ?? [],
+      hasWindows: summary.hasWindows,
+      hasMacos: summary.hasMacos,
+      hasLinux: summary.hasLinux,
+      hasAndroid: summary.hasAndroid,
+      hasIos: summary.hasIos,
+      platforms: summary.platforms,
+      assets: picked.assets,
+      stars: repo.stargazers_count ?? 0,
+    })
+    if (nonApp) {
+      return {
+        ok: false,
+        code: "non_app",
+        error:
+          "This looks like a CLI, server, or infra tool — Open Releases focuses on end-user apps.",
+      }
+    }
+
     return {
       ok: true,
       preview: toPreview(repo, parsed.sourceUrl, picked),
@@ -252,6 +283,38 @@ export async function ingestGithubRepo(
   if (!picked) throw new Error("No installer assets found (desktop or mobile)")
 
   const summary = summarizePlatforms(picked.assets)
+  const nonApp = evaluateNonApp({
+    fullName: canonical,
+    name: repo.name,
+    description: repo.description ?? null,
+    topics: repo.topics ?? [],
+    hasWindows: summary.hasWindows,
+    hasMacos: summary.hasMacos,
+    hasLinux: summary.hasLinux,
+    hasAndroid: summary.hasAndroid,
+    hasIos: summary.hasIos,
+    platforms: summary.platforms,
+    assets: picked.assets,
+    stars: repo.stargazers_count ?? 0,
+  })
+  if (nonApp) {
+    await prisma.scrapeRecord.upsert({
+      where: { fullName: canonical },
+      create: {
+        fullName: canonical,
+        status: SKIPPED_NON_APP_STATUS,
+        reason: SKIPPED_NON_APP_REASON,
+      },
+      update: {
+        status: SKIPPED_NON_APP_STATUS,
+        reason: SKIPPED_NON_APP_REASON,
+        repositoryId: null,
+        lastSeenAt: new Date(),
+      },
+    })
+    throw new Error(nonAppErrorMessage(nonApp))
+  }
+
   const activity = await fetchActivitySignals(canonOwner, canonName, repo)
   const existing = await prisma.repository.findFirst({
     where: {

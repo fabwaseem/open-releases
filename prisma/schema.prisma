@@ -101,7 +101,7 @@ model Release {
 model ScrapeRecord {
   id           String   @id @default(cuid())
   fullName     String   @unique
-  /// discovered | skipped_no_releases | skipped_no_assets | skipped_inactive | saved | error | hidden
+  /// discovered | skipped_no_releases | skipped_no_assets | skipped_inactive | skipped_non_app | saved | error | hidden
   status       String
   reason       String?
   repositoryId String?  @unique

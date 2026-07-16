@@ -20,7 +20,8 @@
     "icons": "tsx scripts/generate-icons.ts",
     "db:migrate-scrape": "tsx scripts/migrate-scrape-to-prod.ts",
     "import:links": "tsx scripts/import-links.ts",
-    "scrape:lists": "tsx scripts/scrape-awesome-lists.ts"
+    "scrape:lists": "tsx scripts/scrape-awesome-lists.ts",
+    "hide:non-apps": "tsx scripts/hide-non-apps.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

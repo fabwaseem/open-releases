@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url"
 import { prisma } from "../lib/db.js"
 import { GitHubApiError } from "../lib/github-rest.js"
 import { ingestGithubRepo } from "../lib/repo-ingest.js"
+import { SKIPPED_NON_APP_STATUS } from "../lib/non-app.js"
 import { parseGithubRepoInput } from "../lib/repo-url.js"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -38,6 +39,7 @@ type Stats = {
   refreshed: number
   skippedNoReleases: number
   skippedNoAssets: number
+  skippedNonApp: number
   notFound: number
   private: number
   invalid: number
@@ -133,7 +135,9 @@ async function readEntries(file: string): Promise<{
   }
 }
 
-function classifyError(message: string): keyof Stats | "retryable" | "other" {
+function classifyError(
+  message: string
+): keyof Stats | "retryable" | "other" {
   const m = message.toLowerCase()
   if (m.includes("rate limit")) return "retryable"
   if (m.includes("not found")) return "notFound"
@@ -146,6 +150,9 @@ function classifyError(message: string): keyof Stats | "retryable" | "other" {
     m.includes("no installers found")
   ) {
     return "skippedNoAssets"
+  }
+  if (m.includes("non-app")) {
+    return "skippedNonApp"
   }
   return "other"
 }
@@ -226,6 +233,7 @@ async function main() {
     refreshed: 0,
     skippedNoReleases: 0,
     skippedNoAssets: 0,
+    skippedNonApp: 0,
     notFound: 0,
     private: 0,
     errors: 0,
@@ -239,6 +247,33 @@ async function main() {
   for (let i = 0; i < work.length; i++) {
     const entry = work[i]!
     const prefix = `[${i + 1}/${work.length}] ${entry.fullName}`
+
+    const priorSkip = await prisma.scrapeRecord.findFirst({
+      where: {
+        fullName: { equals: entry.fullName, mode: "insensitive" },
+        status: {
+          in: [
+            SKIPPED_NON_APP_STATUS,
+            "skipped_no_releases",
+            "skipped_no_assets",
+          ],
+        },
+      },
+      select: { status: true },
+    })
+    if (priorSkip && !args.refresh) {
+      if (priorSkip.status === SKIPPED_NON_APP_STATUS) {
+        stats.skippedNonApp += 1
+        console.log(`${prefix} — skipped non-app (ledger)`)
+      } else if (priorSkip.status === "skipped_no_releases") {
+        stats.skippedNoReleases += 1
+        console.log(`${prefix} — no releases (ledger)`)
+      } else {
+        stats.skippedNoAssets += 1
+        console.log(`${prefix} — no assets (ledger)`)
+      }
+      continue
+    }
 
     const existing = await prisma.repository.findUnique({
       where: { fullName: entry.fullName },
@@ -300,6 +335,10 @@ async function main() {
         stats.skippedNoAssets += 1
         await markFailed(entry.fullName, "skipped_no_assets", result.message)
         console.log(`no installable assets`)
+      } else if (kind === "skippedNonApp") {
+        stats.skippedNonApp += 1
+        await markFailed(entry.fullName, SKIPPED_NON_APP_STATUS, result.message)
+        console.log(`non-app / cli-server`)
       } else {
         stats.errors += 1
         await markFailed(entry.fullName, "error", result.message)
@@ -322,6 +361,7 @@ async function main() {
   console.log(`  refreshed:           ${stats.refreshed}`)
   console.log(`  no releases:         ${stats.skippedNoReleases}`)
   console.log(`  no desktop assets:   ${stats.skippedNoAssets}`)
+  console.log(`  non-app / cli:       ${stats.skippedNonApp}`)
   console.log(`  not found:           ${stats.notFound}`)
   console.log(`  private:             ${stats.private}`)
   console.log(`  errors:              ${stats.errors}`)
