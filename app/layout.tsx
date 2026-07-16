@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { GoogleAnalytics } from "@next/third-parties/google"
 import { DM_Sans, Geist_Mono, Space_Grotesk } from "next/font/google"
 import NextTopLoader from "nextjs-toploader"
 
@@ -8,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
 import { Toaster } from "@/components/ui/toaster"
 import { siteConfig } from "@/lib/brand"
-import "@/lib/env"
+import { env } from "@/lib/env"
 import { buildMetadata, websiteJsonLd } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 
@@ -83,6 +84,9 @@ export default function RootLayout({
           <ScrollToTop />
           <Toaster />
         </ThemeProvider>
+        {env.NEXT_PUBLIC_GA_ID ? (
+          <GoogleAnalytics gaId={env.NEXT_PUBLIC_GA_ID} />
+        ) : null}
       </body>
     </html>
   )

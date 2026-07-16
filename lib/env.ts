@@ -19,6 +19,12 @@ const envSchema = z.object({
 
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 
+  /** Google Analytics 4 measurement ID (e.g. G-XXXXXXXX). Public. */
+  NEXT_PUBLIC_GA_ID: z
+    .string()
+    .regex(/^G-[A-Z0-9]+$/, "NEXT_PUBLIC_GA_ID must look like G-XXXXXXXX")
+    .optional(),
+
   GITHUB_TOKEN: z.string().optional(),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -44,6 +50,7 @@ function readRawEnv() {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || undefined,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || undefined,
+    NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID || undefined,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN || undefined,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || undefined,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
@@ -66,6 +73,7 @@ function loadEnv(): Env {
         raw.BETTER_AUTH_SECRET ?? "skip-env-validation-placeholder-secret!!",
       BETTER_AUTH_URL: raw.BETTER_AUTH_URL,
       NEXT_PUBLIC_SITE_URL: raw.NEXT_PUBLIC_SITE_URL,
+      NEXT_PUBLIC_GA_ID: raw.NEXT_PUBLIC_GA_ID,
       GITHUB_TOKEN: raw.GITHUB_TOKEN,
       GOOGLE_CLIENT_ID: raw.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: raw.GOOGLE_CLIENT_SECRET,

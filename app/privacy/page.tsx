@@ -45,7 +45,12 @@ export default function PrivacyPage() {
           <li>
             <span className="text-foreground">Technical data</span> — standard
             server logs (IP address, user agent, timestamps) needed to operate
-            and secure the service. We do not use third-party advertising cookies.
+            and secure the service.
+          </li>
+          <li>
+            <span className="text-foreground">Analytics</span> — aggregated
+            usage metrics via Google Analytics (page views, device/browser
+            signals). We do not use third-party advertising cookies for ads.
           </li>
         </ul>
       </LegalSection>
@@ -55,6 +60,7 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-2 pl-5">
           <li>Provide accounts, favorites, and authenticated features</li>
           <li>Review repository submissions and moderate the catalog</li>
+          <li>Understand how the directory is used so we can improve it</li>
           <li>Keep the service secure, reliable, and abuse-resistant</li>
           <li>Respond to requests or legal obligations when required</li>
         </ul>
@@ -64,10 +70,11 @@ export default function PrivacyPage() {
       <LegalSection title="Sharing">
         <p>
           We may share data with infrastructure providers that host the app and
-          database (for example Vercel and our PostgreSQL host), and with Google
-          or GitHub solely to complete OAuth when you use those sign-in options.
-          Repository pages surface public GitHub project metadata already
-          published by those projects.
+          database (for example Vercel and our PostgreSQL host), with Google
+          Analytics for site measurement, and with Google or GitHub solely to
+          complete OAuth when you use those sign-in options. Repository pages
+          surface public GitHub project metadata already published by those
+          projects.
         </p>
       </LegalSection>
 
