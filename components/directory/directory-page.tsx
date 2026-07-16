@@ -293,14 +293,6 @@ export function DirectoryPage() {
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <AddRepoButton variant="tile" />
-              <div className="flex size-10 flex-col items-center justify-center bg-primary text-center sm:size-14">
-                <p className="text-sm leading-none font-bold text-primary-foreground tabular-nums sm:text-xl">
-                  {totalLoaded}
-                </p>
-                <p className="mt-0.5 text-[0.5rem] font-semibold tracking-wider text-primary-foreground/80 uppercase sm:text-[0.6rem]">
-                  apps
-                </p>
-              </div>
             </div>
           </div>
 
@@ -345,7 +337,7 @@ export function DirectoryPage() {
             ) : null}
           </div>
 
-          <div className="grid  gap-2 grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             <Select
               value={platform}
               onValueChange={(value) => {
