@@ -22,6 +22,7 @@ import { ReleaseNotes } from "@/components/markdown/release-notes"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDetectedDevice } from "@/hooks/use-detected-device"
@@ -398,9 +399,9 @@ export function RepoDetailPage({
                 <CardTitle className="text-base">What’s new</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="max-h-[min(28rem,60vh)] overflow-y-auto pr-3">
+                <ScrollArea className="w-full max-h-[min(28rem,60vh)] pr-3 *:data-[slot=scroll-area-viewport]:max-h-[min(28rem,60vh)] *:data-[slot=scroll-area-viewport]:h-auto">
                   <ReleaseNotes markdown={body} />
-                </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </section>

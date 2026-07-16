@@ -1,9 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * Copy scraped catalog data from a source DB (local) to a target DB (prod).
+ * Copy catalog repos from a source DB (local) to a target DB (prod).
  *
- * Migrates: Repository, Release, ScrapeRecord
- * Skips: users, sessions, accounts, favorites, submissions, verification
+ * Migrates: Repository + latest Release only
+ * On start: deletes all ScrapeRecord rows on the target (ledger stays local)
+ * Skips: users, favorites, submissions
  *
  * Usage:
  *   pnpm db:migrate-scrape -- --dry-run
@@ -49,7 +50,6 @@ function makeClient(connectionString: string, label: string) {
   const client = new PrismaClient({
     adapter: new PrismaPg({ connectionString }),
   })
-  // Tag disconnect errors with which DB failed
   const original = client.$disconnect.bind(client)
   client.$disconnect = async () => {
     try {
@@ -102,7 +102,6 @@ async function migrateRepos(
   let cursor: string | undefined
   let reposUpserted = 0
   let releasesUpserted = 0
-  let scrapeFromRepo = 0
 
   for (;;) {
     const batch = await source.repository.findMany({
@@ -111,7 +110,6 @@ async function migrateRepos(
       orderBy: { id: "asc" },
       include: {
         latestRelease: true,
-        scrapeRecord: true,
       },
     })
 
@@ -119,12 +117,11 @@ async function migrateRepos(
     cursor = batch[batch.length - 1]!.id
 
     for (const row of batch) {
-      const { latestRelease, scrapeRecord, ...repo } = row
+      const { latestRelease, ...repo } = row
 
       if (dryRun) {
         reposUpserted += 1
         if (latestRelease) releasesUpserted += 1
-        if (scrapeRecord) scrapeFromRepo += 1
         continue
       }
 
@@ -157,32 +154,6 @@ async function migrateRepos(
         })
         releasesUpserted += 1
       }
-
-      if (scrapeRecord) {
-        const {
-          id: scrapeId,
-          repositoryId: _repositoryId,
-          createdAt,
-          updatedAt,
-          ...scrapeFields
-        } = scrapeRecord
-
-        await target.scrapeRecord.upsert({
-          where: { fullName: scrapeRecord.fullName },
-          create: {
-            id: scrapeId,
-            ...scrapeFields,
-            repositoryId: upserted.id,
-            createdAt,
-            updatedAt,
-          },
-          update: {
-            ...scrapeFields,
-            repositoryId: upserted.id,
-          },
-        })
-        scrapeFromRepo += 1
-      }
     }
 
     process.stdout.write(
@@ -191,67 +162,7 @@ async function migrateRepos(
   }
 
   process.stdout.write("\n")
-  return { reposUpserted, releasesUpserted, scrapeFromRepo }
-}
-
-async function migrateOrphanScrapes(
-  source: PrismaClient,
-  target: PrismaClient,
-  dryRun: boolean
-) {
-  let cursor: string | undefined
-  let upserted = 0
-
-  for (;;) {
-    const batch = await source.scrapeRecord.findMany({
-      where: { repositoryId: null },
-      take: BATCH,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      orderBy: { id: "asc" },
-    })
-
-    if (batch.length === 0) break
-    cursor = batch[batch.length - 1]!.id
-
-    for (const scrape of batch) {
-      if (dryRun) {
-        upserted += 1
-        continue
-      }
-
-      const {
-        id,
-        createdAt,
-        updatedAt,
-        repositoryId: _repositoryId,
-        ...fields
-      } = scrape
-
-      await target.scrapeRecord.upsert({
-        where: { fullName: scrape.fullName },
-        create: {
-          id,
-          ...fields,
-          repositoryId: null,
-          createdAt,
-          updatedAt,
-        },
-        update: {
-          ...fields,
-          // Do not clear an existing repository link on the target
-          repositoryId: undefined,
-        },
-      })
-      upserted += 1
-    }
-
-    process.stdout.write(
-      `\r  orphan scrape records… ${upserted}${dryRun ? " (dry-run)" : ""}`
-    )
-  }
-
-  process.stdout.write("\n")
-  return upserted
+  return { reposUpserted, releasesUpserted }
 }
 
 async function main() {
@@ -270,7 +181,7 @@ async function main() {
     throw new Error("Source and target database URLs must be different.")
   }
 
-  console.log("Scrape data migration")
+  console.log("Repo catalog migration (repos + releases only)")
   console.log(`  source: ${hostOf(sourceUrl)}`)
   console.log(`  target: ${hostOf(targetUrl)}`)
   console.log(
@@ -289,42 +200,45 @@ async function main() {
   const target = makeClient(targetUrl, "target")
 
   try {
-    const [sourceRepos, sourceScrapes, targetRepos] = await Promise.all([
+    const [sourceRepos, targetRepos, targetScrapes] = await Promise.all([
       source.repository.count(),
-      source.scrapeRecord.count(),
       target.repository.count(),
+      target.scrapeRecord.count(),
     ])
 
     console.log(
-      `\nCounts — source repos: ${sourceRepos}, source scrapes: ${sourceScrapes}, target repos (before): ${targetRepos}`
+      `\nCounts — source repos: ${sourceRepos}, target repos (before): ${targetRepos}, target scrapes (before): ${targetScrapes}`
     )
 
-    console.log("\nMigrating repositories (+ releases + linked scrapes)…")
+    console.log("\nClearing scrape records on target…")
+    if (flags.dryRun) {
+      console.log(`  would delete ${targetScrapes} scrape record(s) (dry-run)`)
+    } else {
+      const deleted = await target.scrapeRecord.deleteMany({})
+      console.log(`  deleted ${deleted.count} scrape record(s)`)
+    }
+
+    console.log("\nMigrating repositories (+ latest releases)…")
     const repoStats = await migrateRepos(source, target, flags.dryRun)
-
-    console.log("Migrating orphan scrape records (no repository)…")
-    const orphanScrapes = await migrateOrphanScrapes(
-      source,
-      target,
-      flags.dryRun
-    )
 
     const targetAfter = flags.dryRun
       ? targetRepos
       : await target.repository.count()
 
     console.log("\nDone.")
-    console.log(`  repositories upserted: ${repoStats.reposUpserted}`)
-    console.log(`  releases upserted:     ${repoStats.releasesUpserted}`)
-    console.log(`  scrapes (from repos):  ${repoStats.scrapeFromRepo}`)
-    console.log(`  scrapes (orphans):     ${orphanScrapes}`)
-    console.log(`  target repos (after):  ${targetAfter}`)
+    console.log(`  scrape records cleared: ${flags.dryRun ? targetScrapes : "yes"}`)
+    console.log(`  repositories upserted:  ${repoStats.reposUpserted}`)
+    console.log(`  releases upserted:      ${repoStats.releasesUpserted}`)
+    console.log(`  target repos (after):   ${targetAfter}`)
   } finally {
     await Promise.all([source.$disconnect(), target.$disconnect()])
   }
 }
 
 main().catch((error) => {
-  console.error("\nMigration failed:", error instanceof Error ? error.message : error)
+  console.error(
+    "\nMigration failed:",
+    error instanceof Error ? error.message : error
+  )
   process.exit(1)
 })
