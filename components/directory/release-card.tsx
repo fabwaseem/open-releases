@@ -6,6 +6,7 @@ import Link from "next/link"
 import { GithubLogoIcon, StarIcon } from "@phosphor-icons/react"
 
 import { FeatureButton } from "@/components/admin/feature-button"
+import { HideButton } from "@/components/admin/hide-button"
 import { PlatformBadges } from "@/components/directory/platform-badges"
 import { FavoriteButton } from "@/components/favorites/favorite-button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
@@ -41,6 +42,7 @@ export function ReleaseCard({
           featured={repo.featured}
           tone="subtle"
         />
+        <HideButton repositoryId={repo.id} tone="subtle" />
         <FavoriteButton
           repositoryId={repo.id}
           fullName={repo.full_name}
@@ -52,7 +54,7 @@ export function ReleaseCard({
         href={href}
         className="group flex h-full flex-col gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
-        <CardHeader className="gap-3 pr-16">
+        <CardHeader className="gap-3 pr-20">
           <div className="flex items-start gap-3">
             <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
               {repo.avatar_url ? (

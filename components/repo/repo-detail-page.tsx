@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
   ArrowLeftIcon,
@@ -13,6 +14,7 @@ import {
 } from "@phosphor-icons/react"
 
 import { FeatureButton } from "@/components/admin/feature-button"
+import { HideButton } from "@/components/admin/hide-button"
 import { PlatformBadges } from "@/components/directory/platform-badges"
 import { FavoriteButton } from "@/components/favorites/favorite-button"
 import { SiteFooter } from "@/components/layout/site-footer"
@@ -44,6 +46,7 @@ export function RepoDetailPage({
   owner: string
   name: string
 }) {
+  const router = useRouter()
   const device = useDetectedDevice()
   const { data, isLoading, isError, error } = useQuery({
     queryKey: queryKeys.repo(owner, name),
@@ -131,6 +134,11 @@ export function RepoDetailPage({
               repositoryId={catalog.id}
               featured={catalog.featured}
               size="sm"
+            />
+            <HideButton
+              repositoryId={catalog.id}
+              size="sm"
+              onHidden={() => router.push("/")}
             />
             <FavoriteButton
               repositoryId={catalog.id}
