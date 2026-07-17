@@ -211,6 +211,7 @@ function buildScoreFields(
     previousStars: number | null
     previousContributors: number | null
     scoredAt: Date | null
+    createdAt: Date | null
   } | null,
   latestReleasePublishedAt: Date | null
 ) {
@@ -222,6 +223,7 @@ function buildScoreFields(
     repoCreatedAt: repo.created_at
       ? new Date(repo.created_at)
       : activity.createdAt,
+    catalogCreatedAt: previous?.createdAt ?? null,
     latestReleasePublishedAt,
     releasePublishedAts: releases.map((r) => r.published_at),
     recentCommits: activity.recentCommits,
@@ -305,6 +307,7 @@ export async function ingestGithubRepo(
       previousStars: true,
       previousContributors: true,
       scoredAt: true,
+      createdAt: true,
     },
   })
   const publishedAt = picked.release.published_at
@@ -314,7 +317,14 @@ export async function ingestGithubRepo(
     repo,
     releases,
     activity,
-    existing,
+    existing
+      ? {
+          previousStars: existing.previousStars,
+          previousContributors: existing.previousContributors,
+          scoredAt: existing.scoredAt,
+          createdAt: existing.createdAt,
+        }
+      : null,
     publishedAt
   )
 

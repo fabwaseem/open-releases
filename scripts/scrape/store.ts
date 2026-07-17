@@ -173,7 +173,12 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
 
   const existing = await prisma.repository.findUnique({
     where: { fullName },
-    select: { previousStars: true, previousContributors: true, scoredAt: true },
+    select: {
+      previousStars: true,
+      previousContributors: true,
+      scoredAt: true,
+      createdAt: true,
+    },
   })
 
   const scoreFields = buildRepositoryScoreFields({
@@ -182,6 +187,7 @@ export async function saveRepoFromGraphql(node: GqlRepo) {
     previousContributors: existing?.previousContributors ?? null,
     scoredAt: existing?.scoredAt ?? null,
     repoCreatedAt: null,
+    catalogCreatedAt: existing?.createdAt ?? null,
     latestReleasePublishedAt: publishedAt,
     releasePublishedAts: releases.map((r) => r.publishedAt),
     recentCommits: 0,
@@ -360,6 +366,7 @@ function buildScoreFields(
     previousStars: number | null
     previousContributors: number | null
     scoredAt: Date | null
+    createdAt: Date | null
   } | null,
   latestReleasePublishedAt: Date | null
 ) {
@@ -371,6 +378,7 @@ function buildScoreFields(
     repoCreatedAt: repo.created_at
       ? new Date(repo.created_at)
       : activity.createdAt,
+    catalogCreatedAt: previous?.createdAt ?? null,
     latestReleasePublishedAt,
     releasePublishedAts: releases.map((r) => r.published_at),
     recentCommits: activity.recentCommits,
@@ -445,7 +453,12 @@ export async function saveRepoFromRest(
 
   const existing = await prisma.repository.findUnique({
     where: { fullName },
-    select: { previousStars: true, previousContributors: true, scoredAt: true },
+    select: {
+      previousStars: true,
+      previousContributors: true,
+      scoredAt: true,
+      createdAt: true,
+    },
   })
 
   const scoreFields = buildScoreFields(
