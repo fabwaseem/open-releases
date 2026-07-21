@@ -79,30 +79,6 @@ export async function fetchRepo(owner: string, name: string) {
   return restGet<GhRepo>(`/repos/${owner}/${name}`)
 }
 
-export type GhSearchResult = {
-  total_count: number
-  items: Array<{ full_name: string; stargazers_count?: number }>
-}
-
-/** REST repo search — 30 req/min with a token. */
-export async function searchRepos(
-  query: string,
-  page = 1,
-  perPage = 100
-): Promise<GhSearchResult> {
-  const params = new URLSearchParams({
-    q: query,
-    sort: "updated",
-    order: "desc",
-    per_page: String(Math.min(perPage, 100)),
-    page: String(page),
-  })
-  const result = await restGet<GhSearchResult>(
-    `/search/repositories?${params.toString()}`
-  )
-  return result ?? { total_count: 0, items: [] }
-}
-
 export async function fetchReleases(owner: string, name: string) {
   return (
     (await restGet<GhRelease[]>(

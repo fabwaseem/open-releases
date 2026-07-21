@@ -27,15 +27,6 @@ const envSchema = z.object({
 
   GITHUB_TOKEN: z.string().optional(),
 
-  /** Shared secret for Vercel Cron requests (Authorization: Bearer …). */
-  CRON_SECRET: z.string().optional(),
-
-  /** Repos refreshed per /api/cron/update-repos run. Keep low on Vercel Hobby (60s cap). */
-  CRON_UPDATE_LIMIT: z.coerce.number().int().positive().optional(),
-
-  /** New repos ingested per /api/cron/discover run. Keep low on Vercel Hobby (60s cap). */
-  CRON_DISCOVER_LIMIT: z.coerce.number().int().positive().optional(),
-
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
@@ -61,9 +52,6 @@ function readRawEnv() {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || undefined,
     NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID || undefined,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN || undefined,
-    CRON_SECRET: process.env.CRON_SECRET || undefined,
-    CRON_UPDATE_LIMIT: process.env.CRON_UPDATE_LIMIT || undefined,
-    CRON_DISCOVER_LIMIT: process.env.CRON_DISCOVER_LIMIT || undefined,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || undefined,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || undefined,
@@ -87,13 +75,6 @@ function loadEnv(): Env {
       NEXT_PUBLIC_SITE_URL: raw.NEXT_PUBLIC_SITE_URL,
       NEXT_PUBLIC_GA_ID: raw.NEXT_PUBLIC_GA_ID,
       GITHUB_TOKEN: raw.GITHUB_TOKEN,
-      CRON_SECRET: raw.CRON_SECRET,
-      CRON_UPDATE_LIMIT: raw.CRON_UPDATE_LIMIT
-        ? Number(raw.CRON_UPDATE_LIMIT)
-        : undefined,
-      CRON_DISCOVER_LIMIT: raw.CRON_DISCOVER_LIMIT
-        ? Number(raw.CRON_DISCOVER_LIMIT)
-        : undefined,
       GOOGLE_CLIENT_ID: raw.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: raw.GOOGLE_CLIENT_SECRET,
       GITHUB_CLIENT_ID: raw.GITHUB_CLIENT_ID,

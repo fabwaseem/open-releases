@@ -1,0 +1,58 @@
+name: Scrape · update catalog
+
+# Refreshes the stalest catalog repos (details, latest release, score) and
+# drops repos that lost installers / turned non-app. Runs directly against
+# the production DB — no Vercel function, so there's no 60s limit.
+
+on:
+  schedule:
+    # Every 6 hours. Adjust freely — GitHub Actions has no daily-cron cap.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_repos:
+        description: "Max repos to refresh (0 = entire catalog)"
+        default: "500"
+      stale_days:
+        description: "Only refresh repos not scored in N days (0 = ignore)"
+        default: "0"
+
+concurrency:
+  group: scrape-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # --ignore-scripts skips the postinstall `prisma migrate deploy` so a
+      # scrape run can never mutate the prod schema; we generate the client
+      # explicitly instead.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Refresh catalog
+        run: >-
+          pnpm scrape:update --
+          --max-repos ${{ github.event.inputs.max_repos || '500' }}
+          --stale-days ${{ github.event.inputs.stale_days || '0' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.SCRAPE_GITHUB_TOKEN }}

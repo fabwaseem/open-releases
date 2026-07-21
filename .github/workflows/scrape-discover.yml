@@ -1,0 +1,54 @@
+name: Scrape · discover new repos
+
+# Discovers new / trending repos with release installers and adds the ones
+# we don't know yet. Runs directly against the production DB.
+
+on:
+  schedule:
+    # Once a day at 03:00 UTC. Bump the frequency if you want fresher finds.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      max_repos:
+        description: "Max new repos to add this run"
+        default: "300"
+      min_stars:
+        description: "Minimum stars for discovery"
+        default: "20"
+
+concurrency:
+  group: scrape-discover
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Discover repos
+        run: >-
+          pnpm scrape --
+          --max-repos ${{ github.event.inputs.max_repos || '300' }}
+          --min-stars ${{ github.event.inputs.min_stars || '20' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.SCRAPE_GITHUB_TOKEN }}
