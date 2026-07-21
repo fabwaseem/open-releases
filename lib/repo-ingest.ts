@@ -294,7 +294,10 @@ export async function ingestGithubRepo(
   }
 
   const activity = await fetchActivitySignals(canonOwner, canonName, repo)
-  const existing = await prisma.repository.findFirst({
+  // A rename on GitHub (or a case variant) can leave two rows matching the
+  // same repo: prefer the canonical one and drop any stale duplicates so the
+  // rename below never collides on the unique fullName.
+  const matches = await prisma.repository.findMany({
     where: {
       OR: [
         { fullName: canonical },
@@ -310,6 +313,13 @@ export async function ingestGithubRepo(
       createdAt: true,
     },
   })
+  const existing =
+    matches.find((m) => m.fullName === canonical) ?? matches[0] ?? null
+  for (const dup of matches) {
+    if (existing && dup.id !== existing.id) {
+      await prisma.repository.delete({ where: { id: dup.id } }).catch(() => {})
+    }
+  }
   const publishedAt = picked.release.published_at
     ? new Date(picked.release.published_at)
     : null

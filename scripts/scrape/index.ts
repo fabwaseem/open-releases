@@ -115,6 +115,54 @@ function parseArgs(argv: string[]): Args {
   }
 }
 
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms))
+}
+
+/** How long to wait for a GitHub rate-limit window to reset. */
+function rateLimitWaitMs(err: RateLimitError): number {
+  if (err.resetAt && Number.isFinite(err.resetAt)) {
+    // Honor GitHub's reset timestamp; cap at 1h so a bad clock can't hang forever.
+    return Math.min(
+      Math.max(err.resetAt * 1000 - Date.now() + 2_000, 5_000),
+      3_600_000
+    )
+  }
+  // Transient 5xx / missing reset header
+  if (/transient/i.test(err.message)) {
+    return 3_000 + Math.floor(Math.random() * 3_000)
+  }
+  return 60_000
+}
+
+/** Wait out rate limits and retry until success (or attempts exhausted). */
+async function withRateLimitRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  maxAttempts = 30
+): Promise<T> {
+  let attempt = 0
+  for (;;) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (!(err instanceof RateLimitError)) throw err
+      attempt += 1
+      if (attempt > maxAttempts) {
+        console.error(
+          `API rate limit (${label}) — giving up after ${maxAttempts} retries`
+        )
+        throw err
+      }
+      const wait = rateLimitWaitMs(err)
+      console.warn(
+        `API rate limit (${label}) — waiting ${Math.round(wait / 1000)}s then retry (${attempt}/${maxAttempts})`
+      )
+      await sleep(wait)
+    }
+  }
+}
+
 async function processFullName(
   fullName: string,
   stats: Stats,
@@ -256,7 +304,9 @@ async function streamShard(
     console.log(`page ${page}: ${hits.length} repos${totalHint}`)
     for (const hit of hits) {
       if (args.maxRepos && stats.saved >= args.maxRepos) return false
-      await processFullName(hit.fullName, stats)
+      await withRateLimitRetry(hit.fullName, () =>
+        processFullName(hit.fullName, stats)
+      )
     }
 
     if (page === maxPages) reachedEnd = true
@@ -304,23 +354,9 @@ async function runUpdateMode(args: Args, stats: Stats) {
     const fullName = queue[i]!.fullName
     console.log(`[${i + 1}/${queue.length}] refresh ${fullName}`)
 
-    try {
-      await processFullName(fullName, stats, { forceUpdate: true })
-    } catch (err) {
-      if (err instanceof RateLimitError) {
-        const wait = err.resetAt
-          ? Math.min(
-              Math.max(err.resetAt * 1000 - Date.now() + 1000, 5_000),
-              120_000
-            )
-          : 60_000
-        console.warn(`API rate limit — waiting ${Math.round(wait / 1000)}s`)
-        await new Promise((r) => setTimeout(r, wait))
-        await processFullName(fullName, stats, { forceUpdate: true })
-        continue
-      }
-      throw err
-    }
+    await withRateLimitRetry(fullName, () =>
+      processFullName(fullName, stats, { forceUpdate: true })
+    )
   }
 }
 
@@ -361,20 +397,17 @@ async function runDiscoveryMode(args: Args, stats: Stats) {
       }
     } catch (err) {
       if (err instanceof RateLimitError) {
-        const wait = err.resetAt
-          ? Math.min(
-              Math.max(err.resetAt * 1000 - Date.now() + 1000, 5_000),
-              120_000
-            )
-          : 60_000
-        console.warn(`API rate limit — waiting ${Math.round(wait / 1000)}s`)
-        await new Promise((r) => setTimeout(r, wait))
+        const wait = rateLimitWaitMs(err)
+        console.warn(
+          `API rate limit (shard ${shardId(shard)}) — waiting ${Math.round(wait / 1000)}s`
+        )
+        await sleep(wait)
         discovery.queue.unshift(shard)
         continue
       }
       console.error(`shard failed ${shardId(shard)}`, err)
       discovery.queue.unshift(shard)
-      await new Promise((r) => setTimeout(r, 15_000))
+      await sleep(15_000)
     }
   }
 }

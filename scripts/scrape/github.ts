@@ -31,23 +31,22 @@ async function handle(res: Response, kind: string) {
   const remaining = res.headers.get("x-ratelimit-remaining")
   const reset = res.headers.get("x-ratelimit-reset")
   if (res.status === 502 || res.status === 503 || res.status === 504) {
-    await sleep(2_000 + Math.floor(Math.random() * 2_000))
     throw new RateLimitError(`${kind} HTTP ${res.status} (transient)`)
   }
   if (res.status === 403 || res.status === 429) {
     const text = await res.text()
     if (/rate limit/i.test(text) || res.status === 429) {
       const resetAt = reset ? Number(reset) : undefined
-      const wait = resetAt
-        ? Math.min(Math.max(resetAt * 1000 - Date.now() + 1000, 1000), 90_000)
-        : 15_000
-      await sleep(wait)
+      // Caller waits until reset and retries — don't sleep here.
       throw new RateLimitError(`${kind} rate limited`, resetAt)
     }
     throw new Error(`${kind} HTTP ${res.status}: ${text.slice(0, 300)}`)
   }
   if (remaining === "0" && reset) {
-    const wait = Math.min(Math.max(Number(reset) * 1000 - Date.now() + 500, 500), 60_000)
+    const wait = Math.min(
+      Math.max(Number(reset) * 1000 - Date.now() + 500, 500),
+      3_600_000
+    )
     if (wait > 500) await sleep(wait)
   }
 }
