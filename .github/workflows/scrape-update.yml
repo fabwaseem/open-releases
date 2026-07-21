@@ -15,7 +15,7 @@ on:
         default: "500"
       stale_days:
         description: "Only refresh repos not scored in N days (0 = ignore)"
-        default: "0"
+        default: "1"
 
 concurrency:
   group: scrape-update
