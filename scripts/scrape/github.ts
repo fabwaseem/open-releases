@@ -27,6 +27,60 @@ async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms))
 }
 
+function jitterMs(): number {
+  return Math.floor(Math.random() * 501)
+}
+
+/**
+ * Fetch with a hard timeout. Transport errors (network failure /
+ * abort / timeout) and 502/503/504 responses are retried up to 2
+ * extra times with backoff 1s / 3s + jitter ≤500ms.
+ *
+ * The retry loop only wraps the transport call itself: the final
+ * response is returned unconsumed so `handle()` stays the single
+ * place that classifies rate limits and transient statuses.
+ */
+export async function fetchWithTimeout(
+  url: string | URL,
+  init: RequestInit = {},
+  timeoutMs = 30_000
+): Promise<Response> {
+  const backoffs = [1_000, 3_000]
+  let lastError: unknown
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (
+        (res.status === 502 || res.status === 503 || res.status === 504) &&
+        attempt < 2
+      ) {
+        // Discard without reading the body so the retry is clean.
+        try {
+          await res.body?.cancel()
+        } catch {
+          // ignore — body may already be closed
+        }
+        await sleep(backoffs[attempt]! + jitterMs())
+        continue
+      }
+      return res
+    } catch (err) {
+      lastError = err
+      if (attempt < 2) {
+        await sleep(backoffs[attempt]! + jitterMs())
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("fetchWithTimeout: exhausted retries")
+}
+
 async function handle(res: Response, kind: string) {
   const remaining = res.headers.get("x-ratelimit-remaining")
   const reset = res.headers.get("x-ratelimit-reset")
@@ -36,7 +90,17 @@ async function handle(res: Response, kind: string) {
   if (res.status === 403 || res.status === 429) {
     const text = await res.text()
     if (/rate limit/i.test(text) || res.status === 429) {
-      const resetAt = reset ? Number(reset) : undefined
+      const retryAfterRaw = res.headers.get("retry-after")
+      const retryAfterSec =
+        retryAfterRaw != null && retryAfterRaw.trim() !== ""
+          ? Number(retryAfterRaw)
+          : NaN
+      const resetAt =
+        Number.isFinite(retryAfterSec) && retryAfterSec >= 0
+          ? Math.floor(Date.now() / 1000) + retryAfterSec
+          : reset
+            ? Number(reset)
+            : undefined
       // Caller waits until reset and retries — don't sleep here.
       throw new RateLimitError(`${kind} rate limited`, resetAt)
     }
@@ -55,7 +119,7 @@ export async function graphql<T = unknown>(
   query: string,
   variables: Record<string, unknown> = {}
 ): Promise<T> {
-  const res = await fetch(GQL, {
+  const res = await fetchWithTimeout(GQL, {
     method: "POST",
     headers: { ...headers(), "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables }),
@@ -84,16 +148,27 @@ export async function graphql<T = unknown>(
   return payload.data
 }
 
+export type RestGetOpts = {
+  timeoutMs?: number
+  headers?: Record<string, string>
+  etag?: string | null
+}
+
 export async function restGet<T = unknown>(
   path: string,
-  params?: Record<string, string | number>
+  params?: Record<string, string | number>,
+  opts?: { timeoutMs?: number; headers?: Record<string, string> }
 ): Promise<T | null> {
   const url = new URL(`${REST}${path}`)
   if (params) {
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
   }
   if (path.startsWith("/search/")) await sleep(2200)
-  const res = await fetch(url, { headers: headers() })
+  const res = await fetchWithTimeout(
+    url,
+    { headers: { ...headers(), ...(opts?.headers ?? {}) } },
+    opts?.timeoutMs
+  )
   if (res.status === 404) return null
   await handle(res, path.startsWith("/search/") ? "search" : "rest")
   if (!res.ok) {
@@ -101,6 +176,48 @@ export async function restGet<T = unknown>(
     throw new Error(`REST ${res.status}: ${text.slice(0, 300)}`)
   }
   return (await res.json()) as T
+}
+
+export async function restGetWithMeta<T = unknown>(
+  path: string,
+  params?: Record<string, string | number>,
+  opts?: RestGetOpts
+): Promise<{ data: T | null; etag: string | null; notModified: boolean }> {
+  const url = new URL(`${REST}${path}`)
+  if (params) {
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
+  }
+  if (path.startsWith("/search/")) await sleep(2200)
+  const reqHeaders: Record<string, string> = {
+    ...headers(),
+    ...(opts?.headers ?? {}),
+  }
+  if (opts?.etag) reqHeaders["If-None-Match"] = opts.etag
+  const res = await fetchWithTimeout(
+    url,
+    { headers: reqHeaders },
+    opts?.timeoutMs
+  )
+  // 304 short-circuits before handle(): it is not an error and must
+  // not trigger handle()'s remaining=0 sleep even though GitHub
+  // still sends rate-limit headers on 304 responses.
+  if (res.status === 304) {
+    return {
+      data: null,
+      etag: res.headers.get("etag") ?? opts?.etag ?? null,
+      notModified: true,
+    }
+  }
+  if (res.status === 404) {
+    return { data: null, etag: res.headers.get("etag"), notModified: false }
+  }
+  await handle(res, path.startsWith("/search/") ? "search" : "rest")
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`REST ${res.status}: ${text.slice(0, 300)}`)
+  }
+  const data = (await res.json()) as T
+  return { data, etag: res.headers.get("etag"), notModified: false }
 }
 
 export type RestRepo = {
@@ -127,6 +244,7 @@ export type ActivitySignals = {
 }
 
 export type RestRelease = {
+  id?: number
   tag_name?: string
   name?: string | null
   html_url?: string
@@ -147,7 +265,7 @@ async function countContributors(owner: string, name: string): Promise<number> {
   const url = new URL(`${REST}/repos/${owner}/${name}/contributors`)
   url.searchParams.set("per_page", "1")
   url.searchParams.set("anon", "true")
-  const res = await fetch(url, { headers: headers() })
+  const res = await fetchWithTimeout(url, { headers: headers() })
   if (res.status === 204 || res.status === 404) return 0
   await handle(res, "rest")
   if (!res.ok) return 0
@@ -181,10 +299,18 @@ export async function fetchRepoAndReleases(fullName: string): Promise<{
   if (!repo) return null
   await sleep(200)
   // Extra releases for release-frequency scoring + desktop picker.
-  const releases =
-    (await restGet<RestRelease[]>(`/repos/${owner}/${name}/releases`, {
-      per_page: 20,
-    })) ?? []
+  // Paginate: per_page=100, up to 5 pages, stop on a short page.
+  const releases: RestRelease[] = []
+  for (let page = 1; page <= 5; page++) {
+    const batch =
+      (await restGet<RestRelease[]>(`/repos/${owner}/${name}/releases`, {
+        per_page: 100,
+        page,
+      })) ?? []
+    releases.push(...batch)
+    if (batch.length < 100) break
+    if (page < 5) await sleep(200)
+  }
 
   let recentCommits = 0
   let contributorsCount = 0
@@ -206,6 +332,66 @@ export async function fetchRepoAndReleases(fullName: string): Promise<{
       createdAt: repo.created_at ? new Date(repo.created_at) : null,
     },
   }
+}
+
+export type LatestReleaseInfo = {
+  githubId: string
+  tag: string
+  publishedAt: string | null
+}
+
+/** First non-draft entry (the releases list is newest-first). */
+export function latestNonDraft(
+  releases: Array<{
+    id?: number
+    tag_name?: string
+    published_at?: string | null
+    draft?: boolean
+  }>
+): LatestReleaseInfo | null {
+  for (const release of releases) {
+    if (release.draft) continue
+    return {
+      githubId: release.id != null ? String(release.id) : "",
+      tag: release.tag_name ?? "",
+      publishedAt: release.published_at ?? null,
+    }
+  }
+  return null
+}
+
+export type LatestReleaseCheck =
+  | { status: "unchanged"; etag: string | null }
+  | { status: "gone" }
+  | { status: "empty"; etag: string | null }
+  | { status: "changed"; latest: LatestReleaseInfo; etag: string | null }
+
+/**
+ * Cheap release-watch probe: one conditional request for the 3
+ * newest releases. Compares the ETag / latest release id against
+ * what the catalog already knows — no full enrichment needed when
+ * nothing changed.
+ */
+export async function checkLatestRelease(
+  fullName: string,
+  known: { githubId: string | null; etag: string | null }
+): Promise<LatestReleaseCheck> {
+  const [owner, name] = fullName.split("/")
+  if (!owner || !name) return { status: "gone" }
+  const { data, etag, notModified } =
+    await restGetWithMeta<RestRelease[]>(
+      `/repos/${owner}/${name}/releases`,
+      { per_page: 3 },
+      { etag: known.etag }
+    )
+  if (notModified) return { status: "unchanged", etag }
+  if (data === null) return { status: "gone" }
+  const latest = latestNonDraft(data)
+  if (!latest) return { status: "empty", etag }
+  if (known.githubId && latest.githubId === known.githubId) {
+    return { status: "unchanged", etag }
+  }
+  return { status: "changed", latest, etag }
 }
 
 export type SearchHit = {

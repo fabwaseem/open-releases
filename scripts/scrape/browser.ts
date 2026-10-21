@@ -28,7 +28,11 @@ function headers() {
 
 async function fetchHtml(url: string): Promise<string> {
   await sleep(1600)
-  let res = await fetch(url, { headers: headers(), redirect: "follow" })
+  let res = await fetch(url, {
+    headers: headers(),
+    redirect: "follow",
+    signal: AbortSignal.timeout(30_000),
+  })
   if (res.status === 403 || res.status === 429) {
     const retry = Number(res.headers.get("retry-after") ?? "30")
     // Cap wait — GitHub sometimes sends hour-long Retry-After on HTML.
@@ -38,7 +42,11 @@ async function fetchHtml(url: string): Promise<string> {
         (retry > waitSec ? ` (Retry-After was ${retry}s)` : "")
     )
     await sleep(waitSec * 1000)
-    res = await fetch(url, { headers: headers(), redirect: "follow" })
+    res = await fetch(url, {
+      headers: headers(),
+      redirect: "follow",
+      signal: AbortSignal.timeout(30_000),
+    })
   }
   if (!res.ok) {
     throw new Error(`browser HTTP ${res.status} for ${url}`)

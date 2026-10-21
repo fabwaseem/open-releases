@@ -251,6 +251,36 @@ export class StreamingDiscovery {
   }
 }
 
+/**
+ * Whether a scrape-ledger row is old enough to be re-checked.
+ * - skipped_no_releases / skipped_no_assets / error: after revalidateDays
+ * - skipped_non_app: after nonAppDays (apps appear more slowly)
+ * - discovered: after 1 day (stale in-flight marker from a dead run)
+ * Everything else (saved / hidden / skipped_inactive / …) is final.
+ */
+export function isRevalidationEligible(
+  status: string,
+  lastSeenAt: Date,
+  now: Date,
+  opts: { revalidateDays: number; nonAppDays: number }
+): boolean {
+  const ageDays = (now.getTime() - lastSeenAt.getTime()) / 86_400_000
+  if (
+    status === "skipped_no_releases" ||
+    status === "skipped_no_assets" ||
+    status === "error"
+  ) {
+    return ageDays >= opts.revalidateDays
+  }
+  if (status === "skipped_non_app") {
+    return ageDays >= opts.nonAppDays
+  }
+  if (status === "discovered") {
+    return ageDays >= 1
+  }
+  return false
+}
+
 export function yearsAgo(years = 5) {
   const d = new Date()
   d.setFullYear(d.getFullYear() - years)
