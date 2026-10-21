@@ -5,8 +5,8 @@ name: Scrape · discover new repos
 
 on:
   schedule:
-    # Once a day at 03:00 UTC. Bump the frequency if you want fresher finds.
-    - cron: "0 3 * * *"
+    # Every 12 hours at 03:00 and 15:00 UTC. Bump the frequency if you want fresher finds.
+    - cron: "0 3,15 * * *"
   workflow_dispatch:
     inputs:
       max_repos:
@@ -17,7 +17,7 @@ on:
         default: "20"
 
 concurrency:
-  group: scrape-discover
+  group: scrape
   cancel-in-progress: false
 
 jobs:
@@ -49,6 +49,35 @@ jobs:
           pnpm scrape --
           --max-repos ${{ github.event.inputs.max_repos || '300' }}
           --min-stars ${{ github.event.inputs.min_stars || '20' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.SCRAPE_GITHUB_TOKEN }}
+
+  lists:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Import awesome-lists repos
+        run: pnpm scrape:lists -- --import
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GITHUB_TOKEN: ${{ secrets.SCRAPE_GITHUB_TOKEN }}

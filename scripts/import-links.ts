@@ -17,6 +17,7 @@
  */
 import "dotenv/config"
 
+import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -29,6 +30,17 @@ import { parseGithubRepoInput } from "../lib/repo-url.js"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const DEFAULT_FILE = path.join(ROOT, "scraper", "links.txt")
+const AWESOME_LISTS_FILE = path.join(
+  ROOT,
+  "scraper",
+  "awesome-lists-links.txt"
+)
+
+function resolveDefaultFile(): string {
+  // The awesome-lists producer writes awesome-lists-links.txt; prefer it
+  // when present so `pnpm scrape:lists` output is imported by default.
+  return existsSync(AWESOME_LISTS_FILE) ? AWESOME_LISTS_FILE : DEFAULT_FILE
+}
 
 type Stats = {
   lines: number
@@ -55,7 +67,7 @@ type Args = {
 }
 
 function parseArgs(argv: string[]): Args {
-  let file = DEFAULT_FILE
+  let file = resolveDefaultFile()
   let delayMs = 600
   let refresh = false
   let dryRun = false
@@ -64,7 +76,7 @@ function parseArgs(argv: string[]): Args {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!
     if (arg === "--file" || arg === "-f") {
-      file = path.resolve(argv[++i] ?? DEFAULT_FILE)
+      file = path.resolve(argv[++i] ?? resolveDefaultFile())
     } else if (arg === "--delay") {
       delayMs = Math.max(0, Number(argv[++i]) || 0)
     } else if (arg === "--refresh") {
@@ -244,6 +256,12 @@ async function main() {
     `\n${work.length} unique repos to process (${entries.length} after file dedupe)\n`
   )
 
+  // Loud-failure tracking: counts only actual ingest attempts (not
+  // already-listed / ledger skips or dry-run entries).
+  let attempted = 0
+  let saved = 0
+  let errored = 0
+
   for (let i = 0; i < work.length; i++) {
     const entry = work[i]!
     const prefix = `[${i + 1}/${work.length}] ${entry.fullName}`
@@ -308,8 +326,10 @@ async function main() {
       `${prefix} — ${wasListed ? "refreshing" : "fetching"}… `
     )
 
+    attempted += 1
     const result = await ingestWithRetry(entry.fullName)
     if (result.ok) {
+      saved += 1
       if (wasListed) {
         stats.refreshed += 1
         console.log(`updated (★ ${result.stars})`)
@@ -318,6 +338,7 @@ async function main() {
         console.log(`added (★ ${result.stars})`)
       }
     } else {
+      errored += 1
       const kind = classifyError(result.message)
       if (kind === "notFound") {
         stats.notFound += 1
@@ -367,6 +388,17 @@ async function main() {
   console.log(`  errors:              ${stats.errors}`)
 
   await prisma.$disconnect()
+
+  // Loud failure: every ingest attempt errored and nothing was saved —
+  // treat as a failed run (e.g. bad token / DB down) instead of success.
+  // Note: an unreadable input file already fails above via readEntries
+  // throwing into main().catch, which exits 1.
+  if (attempted > 0 && saved === 0 && errored > 0) {
+    console.error(
+      `\nImport failed: ${errored}/${attempted} attempted repos errored and none were saved.`
+    )
+    process.exit(1)
+  }
 }
 
 main().catch(async (error) => {

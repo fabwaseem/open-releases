@@ -21,6 +21,19 @@ import type { RepoPreview } from "@/lib/repo-submission-types"
 
 export type { RepoPreview }
 
+/**
+ * Expected, user-facing ingest failures (no releases, no installers,
+ * non-app, private, …). API routes map these to 400 with the message;
+ * anything else is a 500. `code` is the duck-typed marker routes check.
+ */
+export class RepoIngestError extends Error {
+  code = "ingest_error"
+  constructor(message: string) {
+    super(message)
+    this.name = "RepoIngestError"
+  }
+}
+
 export type PreviewFailure = {
   ok: false
   error: string
@@ -240,25 +253,25 @@ export async function ingestGithubRepo(
   const scrapeReason = opts?.scrapeReason ?? "user_submission"
   const [owner, name] = fullName.split("/")
   if (!owner || !name) {
-    throw new Error("Invalid repository name")
+    throw new RepoIngestError("Invalid repository name")
   }
 
   const repo = await fetchRepo(owner, name)
-  if (!repo) throw new Error("Repository not found on GitHub")
-  if (repo.private) throw new Error("Repository is private")
+  if (!repo) throw new RepoIngestError("Repository not found on GitHub")
+  if (repo.private) throw new RepoIngestError("Repository is private")
 
   // Prefer GitHub's canonical casing so URL case variants don't fork rows.
   const canonical = repo.full_name
   const [canonOwner, canonName] = canonical.split("/")
   if (!canonOwner || !canonName) {
-    throw new Error("Invalid repository name from GitHub")
+    throw new RepoIngestError("Invalid repository name from GitHub")
   }
 
   const releases = await fetchReleases(canonOwner, canonName)
-  if (!releases.length) throw new Error("Repository has no releases")
+  if (!releases.length) throw new RepoIngestError("Repository has no releases")
 
   const picked = pickUsableRelease(releases)
-  if (!picked) throw new Error("No installer assets found (desktop or mobile)")
+  if (!picked) throw new RepoIngestError("No installer assets found (desktop or mobile)")
 
   const summary = summarizePlatforms(picked.assets)
   const nonApp = evaluateNonApp({
@@ -290,7 +303,7 @@ export async function ingestGithubRepo(
         lastSeenAt: new Date(),
       },
     })
-    throw new Error(nonAppErrorMessage(nonApp))
+    throw new RepoIngestError(nonAppErrorMessage(nonApp))
   }
 
   const activity = await fetchActivitySignals(canonOwner, canonName, repo)
@@ -415,8 +428,9 @@ export async function ingestGithubRepo(
       hasLinux: summary.hasLinux,
             hasAndroid: summary.hasAndroid,
             hasIos: summary.hasIos,
-      hidden: false,
-      hiddenReason: null,
+      // Deliberately omit hidden/hiddenReason: re-ingesting or refreshing a
+      // repo must not resurrect one an admin hid. Create still defaults to
+      // hidden: false above; no other write in this file touches hidden.
       scrapedAt: new Date(),
       ...scoreFields,
       latestRelease: {

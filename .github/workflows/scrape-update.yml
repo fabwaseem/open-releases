@@ -1,8 +1,10 @@
 name: Scrape · update catalog
 
 # Refreshes the stalest catalog repos (details, latest release, score) and
-# drops repos that lost installers / turned non-app. Runs directly against
-# the production DB — no Vercel function, so there's no 60s limit.
+# drops repos that lost installers / turned non-app. Uses the release-watch
+# fast path (script-side default --watch-max 1500) plus a revalidation pass.
+# Runs directly against the production DB — no Vercel function, so there's
+# no 60s limit.
 
 on:
   schedule:
@@ -18,7 +20,7 @@ on:
         default: "1"
 
 concurrency:
-  group: scrape-update
+  group: scrape
   cancel-in-progress: false
 
 jobs:

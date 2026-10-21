@@ -261,12 +261,15 @@ async function main() {
 
   const bySource = new Map<string, string[]>()
   const all = new Map<string, string>() // lower -> canonical owner/name
+  let loadedFiles = 0
+  let failedSources = 0
 
   for (const source of DEFAULT_SOURCES) {
     const label = `${source.owner}/${source.name}`
     process.stdout.write(`\nFetching ${label}… `)
     try {
       const { files, branch } = await fetchSourceMarkdown(source)
+      loadedFiles += files.length
       const repos: string[] = []
       for (const file of files) {
         repos.push(...extractRepos(file.text))
@@ -282,6 +285,7 @@ async function main() {
       )
       if (source.note) console.log(`  note: ${source.note}`)
     } catch (error) {
+      failedSources += 1
       console.log("failed")
       console.warn(
         `  ${error instanceof Error ? error.message : String(error)}`
@@ -289,9 +293,29 @@ async function main() {
     }
   }
 
+  if (bySource.size === 0 || loadedFiles === 0) {
+    console.error(
+      `\nScrape failed: all ${DEFAULT_SOURCES.length} awesome-list sources failed / no files loaded — not writing an empty links file.`
+    )
+    process.exit(1)
+  }
+
+  if (failedSources > 0) {
+    console.warn(
+      `\nWARNING: ${failedSources}/${DEFAULT_SOURCES.length} awesome-list sources failed to load — continuing with the ${bySource.size} loaded source(s).`
+    )
+  }
+
   const sorted = [...all.values()].sort((a, b) =>
     a.toLowerCase().localeCompare(b.toLowerCase())
   )
+
+  if (sorted.length === 0) {
+    console.error(
+      "\nScrape failed: 0 links extracted from all loaded awesome-list sources — the list format may have changed; not writing an empty links file."
+    )
+    process.exit(1)
+  }
 
   console.log(`\nUnique GitHub repos across lists: ${sorted.length}`)
   for (const [label, repos] of bySource) {
