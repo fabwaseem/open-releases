@@ -22,6 +22,14 @@ import toast from "react-hot-toast"
 import { ReleaseCard } from "@/components/directory/release-card"
 import { AddRepoButton } from "@/components/submissions/add-repo-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -154,7 +162,7 @@ export function DirectoryPage() {
     } finally {
       setSurprisePending(false)
     }
-  }, [device?.platform, router, surprisePending])
+  }, [device, router, surprisePending])
 
   const urlQ = searchParams.get("q") ?? ""
   const platform = parsePlatform(searchParams.get("platform"))
@@ -344,12 +352,12 @@ export function DirectoryPage() {
         <section
           aria-label="Search and filters"
           className={cn(
-            "sticky top-0 z-10 -mx-4 mb-6 space-y-3 border-b border-transparent px-4 py-3 backdrop-blur-md sm:-mx-6 sm:mb-8 sm:space-y-3 sm:px-6 lg:-mx-8 lg:px-8",
+            "sticky top-0 z-10 -mx-4 mb-6 space-y-3 border-b border-border/40 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:mb-8 sm:space-y-3 sm:px-6 lg:-mx-8 lg:px-8",
             "bg-background/85 supports-[backdrop-filter]:bg-background/70"
           )}
         >
           <div className="flex items-stretch gap-2 sm:gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 shadow-sm ring-1 ring-transparent transition-[box-shadow,ring-color] focus-within:ring-primary/35 sm:gap-3 sm:px-4 sm:py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5 border border-border/70 bg-card/70 px-3 py-2 shadow-sm ring-1 ring-transparent transition-[box-shadow,ring-color] focus-within:ring-primary/35 motion-reduce:transition-none sm:gap-3 sm:px-4 sm:py-2.5">
               <MagnifyingGlassIcon className="size-4 shrink-0 text-primary sm:size-5" />
               <Input
                 value={search}
@@ -361,7 +369,7 @@ export function DirectoryPage() {
               {search ? (
                 <button
                   type="button"
-                  className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                   aria-label="Clear search"
                   onClick={() => {
                     setSearch("")
@@ -375,7 +383,7 @@ export function DirectoryPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-auto shrink-0 gap-1.5 self-stretch rounded-2xl border-border/70 bg-card/70 px-3 text-xs font-semibold tracking-wide uppercase shadow-sm sm:px-4 sm:text-sm"
+              className="h-auto min-h-11 shrink-0 gap-1.5 self-stretch border-border/70 bg-card/70 px-3 text-xs font-semibold tracking-wide uppercase shadow-sm sm:px-4 sm:text-sm"
               disabled={surprisePending}
               aria-label={
                 device?.platform
@@ -385,7 +393,7 @@ export function DirectoryPage() {
               onClick={() => void onSurpriseMe()}
             >
               {surprisePending ? (
-                <SpinnerGapIcon className="size-4 animate-spin" />
+                <SpinnerGapIcon className="size-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <ShuffleIcon className="size-4 text-primary" />
               )}
@@ -446,6 +454,7 @@ export function DirectoryPage() {
             >
               <SelectTrigger
                 className={cn(filterTriggerClass, "capitalize")}
+                aria-label="Sort releases"
               >
                 <SelectValue placeholder="Score">{sortLabel}</SelectValue>
               </SelectTrigger>
@@ -481,41 +490,52 @@ export function DirectoryPage() {
         </section>
 
         {isError ? (
-          <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-sm text-destructive">
+          <div
+            role="alert"
+            className="border border-destructive/40 bg-destructive/10 p-6 text-sm text-destructive"
+          >
             {(error as Error)?.message || "Could not load the release catalog."}
           </div>
         ) : null}
 
         {isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+          <div
+            aria-busy="true"
+            aria-label="Loading releases"
+            className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3"
+          >
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-56 rounded-2xl sm:h-64" />
+              <Skeleton key={i} className="h-56 sm:h-64" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-border/60 bg-card/40 px-6 py-20 text-center">
-            <p className="font-heading text-xl font-semibold tracking-tight">
-              {brandCopy.empty.title}
-            </p>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              {brandCopy.empty.body}
-            </p>
-            <Button
-              className="mt-8 rounded-xl"
-              variant="outline"
-              onClick={() => {
-                setSearch("")
-                replaceFilters({
-                  q: "",
-                  platform: "all",
-                  sort: "score",
-                  dir: "desc",
-                })
-              }}
-            >
-              {brandCopy.empty.reset}
-            </Button>
-          </div>
+          <Empty className="border border-border/60 bg-card/40 px-6 py-16 sm:py-20">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <MagnifyingGlassIcon />
+              </EmptyMedia>
+              <EmptyTitle className="normal-case tracking-tight">
+                {brandCopy.empty.title}
+              </EmptyTitle>
+              <EmptyDescription>{brandCopy.empty.body}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearch("")
+                  replaceFilters({
+                    q: "",
+                    platform: "all",
+                    sort: "score",
+                    dir: "desc",
+                  })
+                }}
+              >
+                {brandCopy.empty.reset}
+              </Button>
+            </EmptyContent>
+          </Empty>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
@@ -534,14 +554,13 @@ export function DirectoryPage() {
             >
               {isFetchingNextPage ? (
                 <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <SpinnerGapIcon className="size-4 animate-spin" />
+                  <SpinnerGapIcon className="size-4 animate-spin motion-reduce:animate-none" />
                   Loading more…
                 </p>
               ) : null}
               {hasNextPage && !isFetchingNextPage ? (
                 <Button
                   variant="outline"
-                  className="rounded-xl"
                   onClick={() => void fetchNextPage()}
                 >
                   Load more

@@ -232,7 +232,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             No account?{" "}
             <Link
               href={`/sign-up?next=${encodeURIComponent(next)}`}
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Sign up
             </Link>
@@ -242,7 +242,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             Already have an account?{" "}
             <Link
               href={`/sign-in?next=${encodeURIComponent(next)}`}
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Sign in
             </Link>
@@ -253,14 +253,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         By continuing you agree to our{" "}
         <Link
           href="/terms"
-          className="underline-offset-4 hover:text-foreground hover:underline"
+          className="underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           Terms
         </Link>{" "}
         and{" "}
         <Link
           href="/privacy"
-          className="underline-offset-4 hover:text-foreground hover:underline"
+          className="underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           Privacy Policy
         </Link>
@@ -281,11 +281,19 @@ function Field({
   error?: string
   children: React.ReactNode
 }) {
+  const errorId = `${id}-error`
+  const describedChild = React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        "aria-describedby": error ? errorId : undefined,
+      })
+    : children
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      {children}
+      {describedChild}
       <p
+        id={errorId}
+        role={error ? "alert" : undefined}
         className={cn(
           "min-h-4 text-xs text-destructive transition-opacity",
           error ? "opacity-100" : "opacity-0"

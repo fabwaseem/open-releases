@@ -63,7 +63,7 @@ export function AddRepoButton({
               aria-label="Add a repo"
               onClick={handleClick}
               className={cn(
-                "inline-flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity hover:opacity-90 sm:size-14",
+                "inline-flex size-11 items-center justify-center bg-primary text-primary-foreground transition-opacity outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none sm:size-14",
                 className
               )}
             >
@@ -219,7 +219,10 @@ function AddRepoDialog({
           </div>
 
           {error ? (
-            <div className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {error}
             </div>
           ) : null}
@@ -231,6 +234,7 @@ function AddRepoDialog({
                   <img
                     src={preview.avatarUrl}
                     alt=""
+                    aria-hidden="true"
                     className="size-10 border border-border/60 bg-muted object-cover"
                   />
                 ) : (
@@ -344,7 +348,7 @@ function AddRepoDialog({
                 <>
                   <CircleNotchIcon
                     data-icon="inline-start"
-                    className="animate-spin"
+                    className="animate-spin motion-reduce:animate-none"
                   />
                   Fetching…
                 </>

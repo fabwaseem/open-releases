@@ -21,6 +21,7 @@ export function BrandMark({
       <img
         src="/logo.svg"
         alt=""
+        aria-hidden="true"
         width={28}
         height={28}
         className="size-7 shrink-0"

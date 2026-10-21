@@ -33,7 +33,10 @@ export function LegalPage({
           {children}
         </div>
         <p className="mt-12 text-sm text-muted-foreground">
-          <Link href="/" className="text-primary underline-offset-4 hover:underline">
+          <Link
+            href="/"
+            className="-mx-1 inline-flex min-h-9 items-center px-1 text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
             ← Back to directory
           </Link>
         </p>

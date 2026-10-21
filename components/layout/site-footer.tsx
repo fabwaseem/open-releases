@@ -17,17 +17,17 @@ export function SiteFooter() {
         </div>
         <nav
           aria-label="Legal"
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
+          className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground"
         >
           <Link
             href="/privacy"
-            className="transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="-mx-1 inline-flex min-h-9 items-center px-2 py-1.5 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Privacy
           </Link>
           <Link
             href="/terms"
-            className="transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="-mx-1 inline-flex min-h-9 items-center px-2 py-1.5 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Terms
           </Link>

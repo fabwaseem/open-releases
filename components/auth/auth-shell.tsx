@@ -22,6 +22,7 @@ export function AuthShell({
           type="button"
           variant="ghost"
           size="sm"
+          className="min-h-10"
           render={<Link href="/" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />

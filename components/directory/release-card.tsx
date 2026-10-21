@@ -30,13 +30,13 @@ export function ReleaseCard({
       size="sm"
       style={{ "--stagger": Math.min(staggerIndex, 11) } as CSSProperties}
       className={cn(
-        "catalog-card-enter relative h-full rounded-2xl bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color,ring-color] duration-200",
-        "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/45 hover:shadow-[0_14px_44px_-22px_oklch(0.55_0.22_25_/_0.6)]",
-        "active:scale-[0.99]"
+        "catalog-card-enter relative h-full bg-card/80 ring-1 ring-border/60 transition-[transform,box-shadow,background-color,ring-color] duration-200 motion-reduce:transition-none",
+        "hover:-translate-y-0.5 hover:bg-card hover:ring-primary/45 hover:shadow-[0_14px_44px_-22px_oklch(0.55_0.22_25_/_0.6)] motion-reduce:hover:translate-y-0",
+        "active:scale-[0.99] motion-reduce:active:scale-100"
       )}
     >
       {/* Outside the link so actions don’t trigger NextTopLoader. */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5">
+      <div className="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5">
         <FeatureButton
           repositoryId={repo.id}
           featured={repo.featured}
@@ -54,9 +54,9 @@ export function ReleaseCard({
         href={href}
         className="group flex h-full flex-col gap-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
-        <CardHeader className="gap-3 pr-20">
+        <CardHeader className="gap-3 pr-24">
           <div className="flex items-start gap-3">
-            <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/50">
+            <div className="relative size-11 shrink-0 overflow-hidden bg-muted ring-1 ring-border/50">
               {repo.avatar_url ? (
                 <Image
                   src={repo.avatar_url}
@@ -83,7 +83,7 @@ export function ReleaseCard({
                 ) : null}
               </div>
               <div className="mt-1 flex min-w-0 items-center gap-2">
-                <p className="truncate text-xs text-foreground/65">
+                <p className="truncate text-xs text-muted-foreground">
                   {repo.full_name}
                 </p>
                 {tag ? (
@@ -97,7 +97,7 @@ export function ReleaseCard({
               </div>
             </div>
           </div>
-          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-foreground/70">
+          <p className="line-clamp-2 min-h-10 text-sm leading-relaxed text-muted-foreground">
             {repo.description || "No description"}
           </p>
           {topics.length > 0 ? (
@@ -105,7 +105,7 @@ export function ReleaseCard({
               {topics.map((topic) => (
                 <span
                   key={topic}
-                  className="bg-muted px-1.5 py-0.5 text-[0.65rem] text-foreground/65"
+                  className="bg-muted px-1.5 py-0.5 text-[0.65rem] text-muted-foreground"
                 >
                   #{topic}
                 </span>
@@ -116,7 +116,7 @@ export function ReleaseCard({
         <CardContent>
           <PlatformBadges platforms={repo.platforms} />
         </CardContent>
-        <CardFooter className="mt-auto flex items-center justify-between gap-3 border-t border-border text-xs text-foreground/65">
+        <CardFooter className="mt-auto flex items-center justify-between gap-3 border-t border-border text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1 font-medium text-amber-700 tabular-nums dark:text-amber-300">
             <StarIcon className="size-3.5" weight="fill" />
             {formatStars(repo.stars)}

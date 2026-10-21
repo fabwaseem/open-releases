@@ -59,14 +59,14 @@ export function ErrorView({
         ) : null}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           {onRetry ? (
-            <Button type="button" className="rounded-xl" onClick={onRetry}>
+            <Button type="button" onClick={onRetry}>
               {retryLabel}
             </Button>
           ) : null}
           <Button
             variant={onRetry ? "outline" : "default"}
             render={<Link href={ctaHref} />}
-            className="rounded-xl"
+           
           >
             {ctaLabel}
           </Button>

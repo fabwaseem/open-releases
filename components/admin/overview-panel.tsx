@@ -58,8 +58,9 @@ function StatCard({
   )
 
   const className = cn(
-    "group border border-border/60 bg-card/50 p-4 transition-colors",
-    href && "hover:border-primary/40 hover:bg-card/80"
+    "group border border-border/60 bg-card/50 p-4 transition-colors outline-none motion-reduce:transition-none",
+    href &&
+      "hover:border-primary/40 hover:bg-card/80 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/40"
   )
 
   if (href) {
@@ -253,7 +254,7 @@ export function OverviewPanel() {
                 <li key={repo.id} className="py-3 first:pt-0 last:pb-0">
                   <Link
                     href={`/repo/${repo.fullName}`}
-                    className="font-medium hover:text-primary"
+                    className="font-medium outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
                     {repo.fullName}
                   </Link>

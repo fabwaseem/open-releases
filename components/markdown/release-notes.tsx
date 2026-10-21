@@ -139,7 +139,7 @@ export function ReleaseNotes({
               return (
                 <code
                   className={cn(
-                    "block overflow-x-auto rounded-xl bg-background/70 p-3 font-mono text-xs text-foreground",
+                    "block overflow-x-auto bg-background/70 p-3 font-mono text-xs text-foreground",
                     codeClassName
                   )}
                   {...props}
@@ -150,7 +150,7 @@ export function ReleaseNotes({
             }
             return (
               <code
-                className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8em] text-foreground"
+                className="bg-muted px-1.5 py-0.5 font-mono text-[0.8em] text-foreground"
                 {...props}
               >
                 {children}
@@ -158,7 +158,7 @@ export function ReleaseNotes({
             )
           },
           pre: ({ children }) => (
-            <pre className="mb-3 overflow-x-auto rounded-xl bg-background/70 p-0 last:mb-0">
+            <pre className="mb-3 overflow-x-auto bg-background/70 p-0 last:mb-0">
               {children}
             </pre>
           ),
@@ -182,7 +182,7 @@ export function ReleaseNotes({
           ),
           hr: () => <hr className="my-5 border-border/60" />,
           details: ({ children }) => (
-            <details className="mb-4 rounded-xl border border-border/50 bg-background/30 p-3 open:pb-4">
+            <details className="mb-4 border border-border/50 bg-background/30 p-3 open:pb-4">
               {children}
             </details>
           ),
@@ -218,12 +218,13 @@ export function ReleaseNotes({
                 height={Number.isFinite(h) ? h : undefined}
                 width={Number.isFinite(w) ? w : undefined}
                 loading="lazy"
+                decoding="async"
                 className={cn(
                   // Keep inline so badges/screenshots share a row like GitHub
                   "inline-block h-auto w-auto max-w-full align-middle object-contain",
                   badge
                     ? "my-0.5 mr-1 max-h-7 rounded-sm"
-                    : "my-1 mr-1 max-h-72 rounded-lg border border-border/40 bg-background/30 sm:max-h-80"
+                    : "my-1 mr-1 max-h-72 border border-border/40 bg-background/30 sm:max-h-80"
                 )}
               />
             )

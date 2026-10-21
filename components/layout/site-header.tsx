@@ -46,7 +46,7 @@ export function SiteHeader() {
       {showAdminBar ? (
         <Link
           href="/admin"
-          className="group flex items-center justify-center gap-2 border-b border-primary/30 bg-primary px-4 py-2 text-center text-xs font-semibold tracking-widest text-primary-foreground uppercase transition-colors hover:bg-primary/90"
+          className="group flex min-h-10 items-center justify-center gap-2 border-b border-primary/30 bg-primary px-4 py-2.5 text-center text-xs font-semibold tracking-widest text-primary-foreground uppercase transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           <GearSixIcon className="size-3.5 shrink-0" />
           <span>You&apos;re signed in as admin — open the admin panel</span>
@@ -126,12 +126,13 @@ export function SiteHeader() {
               <Button
                 variant="ghost"
                 size="sm"
+                className="min-h-10"
                 render={<Link href="/sign-in" />}
               >
                 <SignInIcon data-icon="inline-start" />
                 Sign in
               </Button>
-              <Button size="sm" render={<Link href="/sign-up" />}>
+              <Button size="sm" className="min-h-10" render={<Link href="/sign-up" />}>
                 Sign up
               </Button>
             </>

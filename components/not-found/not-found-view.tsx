@@ -51,14 +51,14 @@ export function NotFoundView({
           {description}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button render={<Link href={ctaHref} />} className="rounded-xl">
+          <Button render={<Link href={ctaHref} />}>
             {ctaLabel}
           </Button>
           {secondaryLabel && secondaryHref ? (
             <Button
               variant="outline"
               render={<Link href={secondaryHref} />}
-              className="rounded-xl"
+             
             >
               {secondaryLabel}
             </Button>

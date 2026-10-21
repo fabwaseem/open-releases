@@ -124,7 +124,11 @@
     @apply font-sans scroll-smooth;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-clip;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -221,6 +225,13 @@
     .cursor-click-ripple,
     .catalog-card-enter {
       animation: none;
+    }
+
+    .catalog-card-enter {
+      transition: none;
+    }
+    .catalog-card-enter:hover {
+      transform: none;
     }
   }
 }

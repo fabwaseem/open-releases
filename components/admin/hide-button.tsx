@@ -81,7 +81,7 @@ export function HideButton({
         aria-label={hidden ? "Unhide repository" : "Hide repository"}
         disabled={mutation.isPending}
         className={cn(
-          "inline-flex size-6 shrink-0 items-center justify-center border border-border/70 bg-background/60 text-muted-foreground transition-colors",
+          "inline-flex size-7 shrink-0 items-center justify-center border border-border/70 bg-background/60 text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
           "hover:border-primary/40 hover:bg-primary/10 hover:text-primary",
           hidden &&
             "border-primary/50 bg-primary/15 text-primary hover:bg-primary/20",

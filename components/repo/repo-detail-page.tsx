@@ -135,7 +135,7 @@ export function RepoDetailPage({
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-xl px-2"
+            className="min-h-10 px-2"
             onClick={() => {
               if (typeof window !== "undefined" && window.history.length > 1) {
                 router.back()
@@ -179,7 +179,14 @@ export function RepoDetailPage({
                     sizes="96px"
                     priority
                   />
-                ) : null}
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="flex size-full items-center justify-center text-sm font-semibold tracking-wide text-muted-foreground uppercase sm:text-base"
+                  >
+                    {(catalog.name ?? "?").slice(0, 2)}
+                  </div>
+                )}
               </div>
 
               <div className="min-w-0 flex-1">
@@ -196,13 +203,13 @@ export function RepoDetailPage({
                     </Badge>
                   ) : null}
                   {tag ? (
-                    <Badge className="rounded-md bg-primary px-2.5 py-1 text-[0.65rem] text-primary-foreground">
+                    <Badge className="bg-primary px-2.5 py-1 text-[0.65rem] text-primary-foreground">
                       {tag}
                     </Badge>
                   ) : null}
                   {(release?.prerelease ||
                     catalog.latest_release.prerelease) && (
-                    <Badge variant="secondary" className="rounded-md uppercase">
+                    <Badge variant="secondary" className="uppercase">
                       Pre-release
                     </Badge>
                   )}
@@ -247,7 +254,7 @@ export function RepoDetailPage({
               {bestDownload && hasDetectedPlatform ? (
                 <Button
                   size="lg"
-                  className="h-12 w-full rounded-xl shadow-[0_10px_30px_-16px_oklch(0.55_0.22_25_/_0.7)]"
+                  className="h-12 w-full shadow-[0_10px_30px_-16px_oklch(0.55_0.22_25_/_0.7)]"
                   render={
                     <a
                       href={bestDownload.url}
@@ -261,11 +268,11 @@ export function RepoDetailPage({
                   Download for {platformLabel(device!.platform!)}
                 </Button>
               ) : device?.platform && !hasDetectedPlatform ? (
-                <Button size="lg" className="h-12 w-full rounded-xl" disabled>
+                <Button size="lg" className="h-12 w-full" disabled>
                   No {platformLabel(device.platform)} build
                 </Button>
               ) : (
-                <Button size="lg" className="h-12 w-full rounded-xl" disabled>
+                <Button size="lg" className="h-12 w-full" disabled>
                   Detecting device…
                 </Button>
               )}
@@ -291,7 +298,7 @@ export function RepoDetailPage({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="flex-1 rounded-xl"
+                  className="flex-1"
                   render={
                     <a href={catalog.url} target="_blank" rel="noreferrer" />
                   }
@@ -303,7 +310,7 @@ export function RepoDetailPage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="flex-1 rounded-xl"
+                    className="flex-1"
                     render={<a href="#readme" />}
                   >
                     README
@@ -313,7 +320,7 @@ export function RepoDetailPage({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full rounded-xl"
+                    className="w-full"
                     render={
                       <a href={homepage} target="_blank" rel="noreferrer" />
                     }
@@ -380,7 +387,7 @@ export function RepoDetailPage({
                           target="_blank"
                           rel="noreferrer"
                           className={cn(
-                            "flex items-center justify-between gap-3 border px-3 py-3 no-underline transition-colors",
+                            "flex min-h-11 items-center justify-between gap-3 border px-3 py-3 no-underline transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                             isBest
                               ? "border-primary/50 bg-primary/10 hover:bg-primary/15"
                               : "border-border/50 bg-background/40 hover:border-primary/40 hover:bg-muted/40"
@@ -459,7 +466,7 @@ export function RepoDetailPage({
 
         {body ? (
           <section className="mt-8 border border-border/50 bg-card/40 p-4 sm:p-5">
-            <h2 className="font-heading text-base font-semibold tracking-tight">
+            <h2 className="font-heading text-lg font-semibold tracking-tight">
               What’s new
             </h2>
             <div className="mt-3">
@@ -476,14 +483,14 @@ export function RepoDetailPage({
             className="mt-8 scroll-mt-24 border border-border/50 bg-card/40 p-4 sm:p-5"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-heading text-base font-semibold tracking-tight">
+              <h2 className="font-heading text-lg font-semibold tracking-tight">
                 README
               </h2>
               <a
                 href={`${catalog.url}#readme`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                className="inline-flex min-h-9 items-center px-1 text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 View on GitHub
               </a>
@@ -547,10 +554,10 @@ function RepoDetailSkeleton() {
         <Skeleton className="mb-4 h-8 w-28 sm:mb-6" />
 
         {/* Hero */}
-        <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm backdrop-blur-sm sm:rounded-3xl sm:p-8">
+        <section className="overflow-hidden border border-border/60 bg-card/70 p-4 shadow-sm backdrop-blur-sm sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-              <Skeleton className="size-16 shrink-0 rounded-2xl sm:size-24" />
+              <Skeleton className="size-16 shrink-0 sm:size-24" />
               <div className="min-w-0 flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Skeleton className="h-9 w-48 sm:h-10 sm:w-64" />
@@ -605,7 +612,7 @@ function RepoDetailSkeleton() {
             {Array.from({ length: 2 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-border/60 bg-card/50 p-4"
+                className="border border-border/60 bg-card/50 p-4"
               >
                 <Skeleton className="mb-4 h-5 w-24" />
                 <div className="space-y-2">
@@ -619,7 +626,7 @@ function RepoDetailSkeleton() {
 
         {/* What’s new */}
         <section className="mt-8">
-          <div className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-6">
+          <div className="border border-border/60 bg-card/50 p-4 sm:p-6">
             <Skeleton className="mb-4 h-5 w-28" />
             <div className="space-y-3">
               <Skeleton className="h-4 w-full" />
@@ -635,7 +642,7 @@ function RepoDetailSkeleton() {
         </section>
 
         {/* Meta */}
-        <section className="mt-8 grid gap-3 rounded-2xl border border-border/50 bg-card/40 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-8 grid gap-3 border border-border/50 bg-card/40 p-5 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-3 w-16" />
