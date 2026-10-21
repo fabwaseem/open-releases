@@ -105,6 +105,11 @@ export async function markScrape(
   reason?: string,
   repositoryId?: string
 ) {
+  const existing = await prisma.scrapeRecord.findUnique({
+    where: { fullName },
+    select: { attempts: true },
+  })
+  const attempts = status === "error" ? (existing?.attempts ?? 0) + 1 : 0
   await prisma.scrapeRecord.upsert({
     where: { fullName },
     create: {
@@ -112,14 +117,58 @@ export async function markScrape(
       status,
       reason,
       repositoryId,
+      attempts,
       lastSeenAt: new Date(),
     },
     update: {
       status,
       reason,
       repositoryId,
+      attempts,
       lastSeenAt: new Date(),
     },
+  })
+}
+
+export async function scrapeRecordState(fullName: string) {
+  const row = await prisma.scrapeRecord.findUnique({
+    where: { fullName },
+    select: { status: true, lastSeenAt: true, attempts: true },
+  })
+  if (!row) return null
+  return {
+    status: row.status,
+    lastSeenAt: row.lastSeenAt,
+    attempts: row.attempts,
+  }
+}
+
+export async function touchReleaseChecked(
+  fullName: string,
+  opts?: {
+    releasesEtag?: string | null
+    latestReleaseGithubId?: string | null
+  }
+) {
+  const data: {
+    releaseCheckedAt: Date
+    releasesEtag?: string | null
+    latestReleaseGithubId?: string | null
+  } = { releaseCheckedAt: new Date() }
+  if (opts?.releasesEtag !== undefined) data.releasesEtag = opts.releasesEtag
+  if (opts?.latestReleaseGithubId !== undefined) {
+    data.latestReleaseGithubId = opts.latestReleaseGithubId
+  }
+  await prisma.repository.updateMany({
+    where: { fullName },
+    data,
+  })
+}
+
+export async function touchScrapedAt(fullName: string) {
+  await prisma.repository.updateMany({
+    where: { fullName },
+    data: { scrapedAt: new Date() },
   })
 }
 
@@ -342,7 +391,8 @@ type RestSaveInput = {
   owner?: { login?: string; avatar_url?: string | null } | null
 }
 
-type RestReleaseInput = {
+export type RestReleaseInput = {
+  id?: number
   tag_name?: string
   name?: string | null
   html_url?: string
@@ -356,6 +406,91 @@ type RestReleaseInput = {
     download_count?: number
     browser_download_url?: string
   }>
+}
+
+const VERSION_SUFFIX =
+  /[._-](windows|win|macos|mac|osx|darwin|linux|android|ios|iphone|ipad|x86_64|amd64|arm64|aarch64|universal|portable|setup|installer|appimage|deb|rpm|apk|dmg|exe|msi|zip|tar\.gz|tgz)$/
+
+/** Normalize a tag for cross-release version matching (e.g. v1.2.0-windows → 1.2.0). */
+function normalizeVersion(tag?: string | null): string {
+  if (!tag) return ""
+  let v = tag.trim().toLowerCase()
+  v = v.replace(/^v(?=\d)/, "")
+  // Strip trailing platform/arch/package suffixes repeatedly.
+  for (;;) {
+    const next = v.replace(VERSION_SUFFIX, "")
+    if (next === v) break
+    v = next
+  }
+  return v.replace(/[._-]+$/, "")
+}
+
+export type ReleaseBundle = {
+  primary: RestReleaseInput
+  assets: DesktopAsset[]
+  usedTags: string[]
+}
+
+/**
+ * Pick the primary release and merge in sibling releases that belong to
+ * the same version (normalized tag match) or were published within
+ * 7 days of the primary — installers are often split across per-platform
+ * releases for the same version.
+ */
+export function pickReleaseBundle(
+  releases: RestReleaseInput[]
+): ReleaseBundle | null {
+  const usable = releases
+    .filter((r) => !r.draft)
+    .map((release) => {
+      const assets = usableInstallers(release.assets ?? [])
+      return { release, assets }
+    })
+    .filter((x) => x.assets.length > 0)
+    .sort(
+      (a, b) =>
+        Date.parse(b.release.published_at ?? "") -
+        Date.parse(a.release.published_at ?? "")
+    )
+
+  if (!usable.length) return null
+
+  const primaryEntry = usable.find((x) => !x.release.prerelease) ?? usable[0]!
+  const primary = primaryEntry.release
+  const primaryVersion = normalizeVersion(primary.tag_name)
+  const primaryTime = Date.parse(primary.published_at ?? "")
+  const sevenDaysMs = 7 * 86_400_000
+
+  const merged: typeof usable = [primaryEntry]
+  for (const entry of usable) {
+    if (entry === primaryEntry) continue
+    const versionMatch =
+      primaryVersion !== "" &&
+      normalizeVersion(entry.release.tag_name) === primaryVersion
+    const time = Date.parse(entry.release.published_at ?? "")
+    const withinWindow =
+      Number.isFinite(primaryTime) &&
+      Number.isFinite(time) &&
+      Math.abs(time - primaryTime) <= sevenDaysMs
+    if (versionMatch || withinWindow) merged.push(entry)
+  }
+
+  const seen = new Set<string>()
+  const assets: DesktopAsset[] = []
+  for (const entry of merged) {
+    for (const asset of entry.assets) {
+      const key = asset.name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      assets.push(asset)
+    }
+  }
+
+  return {
+    primary,
+    assets,
+    usedTags: merged.map((x) => x.release.tag_name ?? "unknown"),
+  }
 }
 
 function buildScoreFields(
@@ -404,26 +539,14 @@ export async function saveRepoFromRest(
     return { saved: false as const, reason: "no_releases" }
   }
 
-  const usable = releases
-    .filter((r) => !r.draft)
-    .map((r) => {
-      const assets = usableInstallers(r.assets ?? [])
-      return { release: r, assets }
-    })
-    .filter((x) => x.assets.length > 0)
-    .sort(
-      (a, b) =>
-        Date.parse(b.release.published_at ?? "") -
-        Date.parse(a.release.published_at ?? "")
-    )
-
-  if (!usable.length) {
+  const bundle = pickReleaseBundle(releases)
+  if (!bundle) {
     await markScrape(fullName, SKIPPED_NO_ASSETS_STATUS, SKIPPED_NO_ASSETS_REASON)
     return { saved: false as const, reason: "no_assets" }
   }
 
-  const picked = usable.find((x) => !x.release.prerelease) ?? usable[0]!
-  const { release, assets } = picked
+  const release = bundle.primary
+  const assets = bundle.assets
   const summary = summarizePlatforms(assets)
   const owner = repo.owner?.login ?? fullName.split("/")[0]!
   const pushedAt = repo.pushed_at ? new Date(repo.pushed_at) : null
@@ -469,6 +592,13 @@ export async function saveRepoFromRest(
     publishedAt
   )
 
+  // Watermark: keep the existing value when the primary has no GitHub id;
+  // releasesEtag is intentionally left unchanged here (see touchReleaseChecked).
+  const watermarkFields =
+    release.id != null
+      ? { latestReleaseGithubId: String(release.id) }
+      : {}
+
   const row = await prisma.repository.upsert({
     where: { fullName },
     create: {
@@ -494,6 +624,7 @@ export async function saveRepoFromRest(
       hidden: false,
       scrapedAt: new Date(),
       ...scoreFields,
+      ...watermarkFields,
       latestRelease: {
         create: {
           tag: release.tag_name ?? "unknown",
@@ -533,6 +664,7 @@ export async function saveRepoFromRest(
       hasIos: summary.hasIos,
       scrapedAt: new Date(),
       ...scoreFields,
+      ...watermarkFields,
       latestRelease: {
         upsert: {
           create: {
