@@ -39,9 +39,9 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      # --ignore-scripts skips the postinstall `prisma migrate deploy` so a
-      # scrape run can never mutate the prod schema; we generate the client
-      # explicitly instead.
+      # --ignore-scripts is a safeguard so a scrape run can never mutate
+      # the prod schema via install scripts; migrations run only in the
+      # Vercel production build. We generate the client explicitly instead.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 

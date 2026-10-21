@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "postinstall": "prisma migrate deploy && prisma generate",
+    "postinstall": "prisma generate",
     "db:dev": "prisma dev --name releases --detach",
     "db:stop": "prisma dev stop --name releases",
     "db:push": "prisma db push",
