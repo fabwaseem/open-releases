@@ -202,9 +202,10 @@ Manual runs expose inputs for changing repository limits, stale age, and
 minimum stars. Concurrency controls prevent two copies of the same scraper from
 writing simultaneously.
 
-Dependencies are installed with `--ignore-scripts` in Actions so scheduled
-scrapes cannot implicitly run database migrations. The Prisma client is
-generated explicitly before each scrape.
+Dependencies are installed with `--ignore-scripts` in Actions as a safeguard
+so scheduled scrapes can never implicitly run anything from install scripts.
+The Prisma client is generated explicitly before each scrape, and schema
+migrations are never run by the scrape workflows.
 
 ## Production database migration
 
@@ -230,8 +231,14 @@ https://your-domain.example/api/auth/callback/google
 https://your-domain.example/api/auth/callback/github
 ```
 
-Database migrations are deployed by the `postinstall` command. Scheduled
-scraping remains in GitHub Actions and requires no Vercel Cron configuration.
+Database schema migrations run automatically on deployment — there is no
+manual migration step. Vercel runs the `vercel-build` script
+(`scripts/vercel-build.mjs`), which on a **production** deployment runs
+`prisma migrate deploy` before `next build`, and fails the deployment if a
+migration fails. Preview deployments skip migrations, since they share the
+production `DATABASE_URL`. This requires `DATABASE_URL` to be set in
+Vercel's Production environment variables. Scheduled scraping remains in
+GitHub Actions and requires no Vercel Cron configuration.
 
 ## Quality checks
 
